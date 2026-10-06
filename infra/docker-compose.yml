@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+psycopg://leadforge:leadforge@postgres:5432/leadforge
+      - FORCE_DRY_RUN=true
+      - APP_ENV=staging
+    env_file:
+      - ../backend/.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - demo_sites:/app/data/demo_sites
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: leadforge
+      POSTGRES_PASSWORD: leadforge
+      POSTGRES_DB: leadforge
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leadforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  dashboard:
+    build:
+      context: ../dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  demo_sites:
