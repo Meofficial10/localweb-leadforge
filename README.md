@@ -4,6 +4,43 @@ An automated lead-generation and outreach system for local businesses with **no 
 
 > **Every outbound channel defaults to DRY-RUN.** The system discovers, enriches, profiles and builds demo sites, and drafts outreach — but sends nothing until you explicitly enable LIVE mode per channel.
 
+## Run the project (one command)
+
+The repo ships a root-level runner so you can start **backend + dashboard together** with one command — no manual venv activation needed.
+
+Prerequisites: **Node.js 18+** (with npm) and **Python 3.12**.
+
+```bash
+# First time only: create the backend venv, install backend + dashboard deps,
+# copy .env.example -> backend/.env if missing, and apply Alembic migrations.
+npm run setup
+
+# Development (hot reload) — backend on :8000, dashboard on :3006
+npm run dev            # or: scripts\dev.ps1   (Windows)  /  bash scripts/dev.sh
+
+# Production — builds the dashboard then serves it (backend without --reload)
+npm run start
+
+# Reset the database (drop + recreate; add --seed for demo data)
+npm run reset          # python -m scripts.reset_db
+npm run reset -- --seed
+```
+
+**What `npm run dev` starts:**
+
+| Prefix | Process | URL |
+|--------|---------|-----|
+| `[api]` | FastAPI (uvicorn --reload) via `backend/.venv` | http://127.0.0.1:8000/docs |
+| `[web]` | Next.js 15 dashboard | http://127.0.0.1:3006 |
+
+`scripts/dev.ps1` (Windows) and `scripts/dev.sh` (macOS/Linux) are thin launchers
+that run the same `npm run dev` flow and automatically run `setup` first if the
+venv or dashboard `node_modules` are missing.
+
+> The dashboard shows a **"Backend not reachable at …" banner with a Retry button**
+> whenever the API at `http://localhost:8000` is down, so a mis-started backend is
+> obvious instead of showing confusing errors.
+
 ## Why this exists
 Small local businesses often have no web presence, yet cold outreach is slow, generic, and manual — and high-volume outreach without compliance controls gets accounts banned and runs afoul of Singapore's Spam Control Act / PDPA, plus CAN-SPAM and GDPR. LeadForge automates discovery → enrichment → profile → demo site build → personalized email / AI call → reply tracking → human handoff, with compliance gates, daily caps, suppression, and dry-run defaults built in.
 

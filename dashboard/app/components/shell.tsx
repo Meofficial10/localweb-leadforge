@@ -4,6 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import { SideNav } from "@/app/components/sidebar";
 import { TopBar } from "@/app/components/topbar";
+import { BackendStatusBanner } from "@/app/components/backend-status-banner";
 import { Sheet, SheetContent } from "@/app/components/ui/sheet";
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </Sheet>
       <div className="flex min-w-0 flex-1 flex-col">
         <Suspense fallback={<div className="h-14" />}><TopBar onOpenSidebar={() => setMobileOpen(true)} /></Suspense>
+        <BackendStatusBanner />
         <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
     </div>

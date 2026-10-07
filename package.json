@@ -1,0 +1,19 @@
+{
+  "name": "leadforge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LeadForge monorepo runner — one command to run backend + dashboard together",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "start": "concurrently -k -n api,web -c blue,green \"npm:start:api\" \"npm:start:web\"",
+    "setup": "node scripts/setup.mjs",
+    "reset": "node scripts/reset.mjs",
+    "dev:api": "node scripts/run.mjs api dev",
+    "dev:web": "node scripts/run.mjs web dev",
+    "start:api": "node scripts/run.mjs api prod",
+    "start:web": "node scripts/run.mjs web prod"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

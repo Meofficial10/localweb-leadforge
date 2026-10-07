@@ -124,6 +124,7 @@ export const settingsApi = {
 };
 
 export const systemApi = {
+  health: () => get<{ status: string; env: string }>("/health"),
   status: () => get<SystemStatus>("/system/status"),
   metrics: () => get<Metrics>("/system/metrics"),
   campaignModes: (campaignId?: string) =>
