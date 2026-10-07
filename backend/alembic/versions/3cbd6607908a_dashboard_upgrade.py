@@ -1,19 +1,20 @@
-"""initial schema
+from app.models.base import GUID
 
-Revision ID: 77466508c25f
+"""dashboard_upgrade
+
+Revision ID: 3cbd6607908a
 Revises: 
-Create Date: 2026-10-07 00:16:01.023611
+Create Date: 2026-10-07 09:00:28.212391
 
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from app.models.base import GUID
 from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
-revision: str = '77466508c25f'
+revision: str = '3cbd6607908a'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -35,15 +36,41 @@ def upgrade() -> None:
     sa.Column('name', sa.Text(), nullable=False),
     sa.Column('country', sa.String(length=64), nullable=False),
     sa.Column('city', sa.String(length=128), nullable=False),
+    sa.Column('area_radius_km', sa.Float(), nullable=True),
     sa.Column('categories', sa.JSON().with_variant(sqlite.JSON(), 'sqlite'), nullable=False),
+    sa.Column('lead_source', sa.String(length=16), nullable=False),
     sa.Column('daily_email_cap', sa.Integer(), nullable=False),
     sa.Column('daily_call_cap', sa.Integer(), nullable=False),
+    sa.Column('max_leads_per_run', sa.Integer(), nullable=True),
     sa.Column('send_window', sa.JSON().with_variant(sqlite.JSON(), 'sqlite'), nullable=True),
+    sa.Column('timezone', sa.String(length=64), nullable=False),
+    sa.Column('warm_up_schedule', sa.JSON().with_variant(sqlite.JSON(), 'sqlite'), nullable=True),
+    sa.Column('followup_delay_days', sa.Integer(), nullable=False),
+    sa.Column('approval_mode', sa.String(length=16), nullable=False),
+    sa.Column('cron_schedule', sa.JSON().with_variant(sqlite.JSON(), 'sqlite'), nullable=True),
     sa.Column('mode', sa.String(length=16), nullable=False),
     sa.Column('is_paused', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('demo_projects',
+    sa.Column('id', GUID(length=36), nullable=False),
+    sa.Column('provider', sa.String(length=32), nullable=False),
+    sa.Column('project_name', sa.String(length=200), nullable=True),
+    sa.Column('base_url', sa.String(length=300), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('integration_secrets',
+    sa.Column('id', GUID(length=36), nullable=False),
+    sa.Column('key', sa.String(length=128), nullable=False),
+    sa.Column('encrypted_value', sa.Text(), nullable=False),
+    sa.Column('is_set', sa.Boolean(), nullable=False),
+    sa.Column('last_verified_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('key')
     )
     op.create_table('settings',
     sa.Column('key', sa.String(length=128), nullable=False),
@@ -144,6 +171,7 @@ def upgrade() -> None:
     sa.Column('sequence_step', sa.Integer(), nullable=False),
     sa.Column('subject', sa.Text(), nullable=True),
     sa.Column('body', sa.Text(), nullable=True),
+    sa.Column('inbound_content', sa.Text(), nullable=True),
     sa.Column('status', sa.String(length=32), nullable=False),
     sa.Column('provider_message_id', sa.String(length=128), nullable=True),
     sa.Column('scheduled_at', sa.DateTime(timezone=True), nullable=True),
@@ -152,6 +180,8 @@ def upgrade() -> None:
     sa.Column('bounced', sa.Boolean(), nullable=False),
     sa.Column('consent_token', sa.String(length=128), nullable=True),
     sa.Column('intent', sa.String(length=32), nullable=True),
+    sa.Column('handled', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.ForeignKeyConstraint(['lead_id'], ['leads.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -184,6 +214,8 @@ def downgrade() -> None:
     op.drop_table('leads')
     op.drop_table('suppression_list')
     op.drop_table('settings')
+    op.drop_table('integration_secrets')
+    op.drop_table('demo_projects')
     op.drop_table('campaigns')
     op.drop_table('audit_log')
     # ### end Alembic commands ###

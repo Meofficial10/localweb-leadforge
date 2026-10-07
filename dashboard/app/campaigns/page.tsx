@@ -1,40 +1,73 @@
-import { apiGet } from "../lib/api";
+"use client";
 
 export const dynamic = "force-dynamic";
 
-export default async function Campaigns() {
-  let campaigns: any[] = [];
-  try { campaigns = await apiGet<any[]>("/campaigns"); } catch { /* offline */ }
+import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Plus, Megaphone } from "lucide-react";
+import { campaignsApi, type Campaign } from "@/app/lib/api";
+import { PageHeader } from "@/app/components/shared/page-header";
+import { EmptyState } from "@/app/components/shared/empty-state";
+import { CampaignCard } from "@/app/components/campaign-card";
+import { CampaignForm } from "@/app/components/campaign-form";
+import { Skeleton } from "@/app/components/ui/skeleton";
+import { Button } from "@/app/components/ui/button";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/app/components/ui/dialog";
+
+export default function CampaignsPage() {
+  const { data, isLoading, isError } = useQuery({ queryKey: ["campaigns"], queryFn: campaignsApi.list });
+  const [creating, setCreating] = React.useState(false);
+  const [editing, setEditing] = React.useState<Campaign | null>(null);
+
   return (
     <div>
-      <h1 className="text-2xl font-bold">Campaigns</h1>
-      <table className="mt-4 w-full border-collapse text-sm">
-        <thead>
-          <tr className="text-left text-gray-400">
-            <th className="py-2">Name</th>
-            <th>City</th>
-            <th>Categories</th>
-            <th>Mode</th>
-            <th>Email cap/day</th>
-            <th>Paused</th>
-          </tr>
-        </thead>
-        <tbody>
-          {campaigns.map((c) => (
-            <tr key={c.id} className="border-t border-gray-800">
-              <td className="py-2">{c.name}</td>
-              <td>{c.city}</td>
-              <td>{(c.categories || []).join(", ")}</td>
-              <td className={c.mode === "dry_run" ? "text-amber-400" : "text-emerald-400"}>{c.mode}</td>
-              <td>{c.daily_email_cap}</td>
-              <td>{String(c.is_paused)}</td>
-            </tr>
-          ))}
-          {campaigns.length === 0 && (
-            <tr><td colSpan={6} className="py-4 text-gray-500">No campaigns yet.</td></tr>
-          )}
-        </tbody>
-      </table>
+      <PageHeader
+        title="Campaigns"
+        description="Create targeting campaigns for discovery, enrichment, AI-written demos and dry-run outreach."
+        actions={
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" /> New campaign
+          </Button>
+        }
+      />
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {[1, 2, 3].map((i) => (<Skeleton key={i} className="h-44" />))}
+        </div>
+      ) : isError ? (
+        <p className="text-sm text-destructive">Couldn&apos;t load campaigns — is the backend running on port 8000?</p>
+      ) : (data && data.length > 0) ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {data.map((c) => (<CampaignCard key={c.id} campaign={c} onEdit={setEditing} />))}
+        </div>
+      ) : (
+        <EmptyState
+          icon={<Megaphone className="h-6 w-6" />}
+          title="No campaigns yet"
+          description="Create your first campaign to start discovering leads in a city. Everything runs in dry-run by default."
+          action={<Button onClick={() => setCreating(true)}><Plus className="h-4 w-4" /> New campaign</Button>}
+        />
+      )}
+
+      <Dialog open={creating} onOpenChange={setCreating}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>New campaign</DialogTitle>
+          </DialogHeader>
+          {creating && <CampaignForm onDone={() => setCreating(false)} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Edit campaign</DialogTitle>
+          </DialogHeader>
+          {editing && <CampaignForm campaign={editing} onDone={() => setEditing(null)} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

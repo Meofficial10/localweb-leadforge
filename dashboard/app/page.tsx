@@ -1,24 +1,183 @@
-import { apiGet } from "./lib/api";
+"use client";
 
-async function getStatus() {
-  try {
-    return await apiGet<any>("/health");
-  } catch {
-    return { status: "offline" };
-  }
+export const dynamic = "force-dynamic";
+
+import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Users, Mail, MousePointerClick, CheckCircle2, Phone, ShieldAlert, Loader2, Activity, Gauge } from "lucide-react";
+import { systemApi, settingsApi } from "@/app/lib/api";
+import { PageHeader } from "@/app/components/shared/page-header";
+import { Skeleton } from "@/app/components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Badge } from "@/app/components/ui/badge";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Legend,
+} from "recharts";
+
+function KpiCard({ icon, label, value, suffix, accent }: { icon: React.ReactNode; label: string; value: number | string; suffix?: string; accent?: string }) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground">{label}</CardTitle>
+        <span className="text-primary">{icon}</span>
+      </CardHeader>
+      <CardContent>
+        <p className={"text-2xl font-bold " + (accent || "")}>
+          {value}
+          {suffix ? <span className="text-sm font-normal text-muted-foreground"> {suffix}</span> : null}
+        </p>
+      </CardContent>
+    </Card>
+  );
 }
 
-export default async function Home() {
-  const health = await getStatus();
+
+function CapBar({ label, used, cap, unit }: { label: string; used: number; cap?: number; unit: string }) {
+  const c = typeof cap === "number" && cap > 0 ? cap : 1;
+  const pct = Math.min(100, Math.round((used / c) * 100));
   return (
     <div>
-      <h1 className="text-2xl font-bold">Control plane</h1>
-      <p className="mt-2 text-gray-400">
-        Backend status: <span className={health.status === "ok" ? "text-emerald-400" : "text-red-400"}>{String(health.status)}</span>
-      </p>
-      <p className="mt-4 text-sm text-gray-500">
-        Dry-run is enabled by default. No outbound email or calls are sent until you explicitly enable LIVE mode per channel.
-      </p>
+      <div className="mb-1 flex items-center justify-between text-xs">
+        <span className="font-medium text-muted-foreground">{label}</span>
+        <span className="tabular-nums">{used} / {typeof cap === "number" ? cap : "—"} {unit}</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={label + " usage"}>
+        <div className={"h-full rounded-full " + (pct >= 100 ? "bg-destructive" : "bg-primary")} style={{ width: pct + "%" }} />
+      </div>
     </div>
   );
+}
+
+
+export default function OverviewPage() {
+  const { data, isLoading, isError } = useQuery({ queryKey: ["metrics"], queryFn: systemApi.metrics });
+  const status = useQuery({ queryKey: ["system-status"], queryFn: systemApi.status });
+  const caps = useQuery({ queryKey: ["settings"], queryFn: settingsApi.get });
+  const { data: activity, isLoading: activityLoading } = useQuery({ queryKey: ["audit"], queryFn: () => systemApi.audit({ limit: "8" }) });
+  const k = data?.kpis;
+  const dry = status.data?.force_dry_run !== false;
+
+  return (
+    <div>
+      <PageHeader
+        title="Overview"
+        description="Pipeline health at a glance. Everything runs in dry-run until you explicitly enable live."
+        actions={dry ? <Badge variant="secondary">Global dry-run active</Badge> : null}
+      />
+      {isLoading ? (
+        <div className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[]}</div>
+          <Skeleton className="h-64" />
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <KpiCard icon={<Users className="h-4 w-4" />} label="Leads found" value={k?.leads_found ?? 0} />
+            <KpiCard icon={<Mail className="h-4 w-4" />} label="Emails drafted" value={k?.emails_drafted ?? 0} />
+            <KpiCard icon={<CheckCircle2 className="h-4 w-4" />} label="Emails sent" value={k?.emails_sent ?? 0} />
+            <KpiCard icon={<MousePointerClick className="h-4 w-4" />} label="Replies" value={k?.replies ?? 0} />
+            <KpiCard icon={<Phone className="h-4 w-4" />} label="Calls placed" value={k?.calls_made ?? 0} />
+          </div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-5">
+            <Card className="lg:col-span-3">
+              <CardHeader>
+                <CardTitle className="text-sm">Leads discovered per day</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={data?.leads_per_day || []} margin={{ top: 5, right: 10, left: -15, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="fillGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="count" name="Leads" stroke="var(--primary)" fill="url(#fillGradient)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-sm">Funnel</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={funnelData(data?.funnel)} margin={{ top: 5, right: 10, left: -15, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="value" name="stage" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiCard icon={<ShieldAlert className="h-4 w-4" />} label="Bounce rate" value={k?.bounce_rate != null ? (k.bounce_rate * 100).toFixed(2) : 0} suffix="%" />
+            <KpiCard icon={<ShieldAlert className="h-4 w-4" />} label="Complaint rate" value={k?.complaint_rate != null ? (k.complaint_rate * 100).toFixed(2) : 0} suffix="%" />
+            <KpiCard icon={<Users className="h-4 w-4" />} label="Opted out" value={k?.opted_out ?? 0} />
+            <KpiCard icon={<Users className="h-4 w-4" />} label="With contact info" value={k?.with_contact ?? 0} />
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm inline-flex items-center gap-2"><Gauge className="h-4 w-4" /> Usage vs daily caps</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <CapBar label="Emails (sent + drafted)" used={(k?.emails_sent ?? 0) + (k?.emails_drafted ?? 0)} cap={caps?.data?.daily_email_cap} unit="emails" />
+                <CapBar label="Calls today" used={k?.calls_made ?? 0} cap={caps?.data?.daily_call_cap} unit="calls" />
+                <p className="text-xs text-muted-foreground">Caps gate the sending pipeline; with the global dry-run nothing is ever delivered. Warm-up ramp: {caps?.data?.warm_up_schedule?.start ?? 5}/day growing to the cap over {caps?.data?.warm_up_schedule?.days ?? 21} days.</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm inline-flex items-center gap-2"><Activity className="h-4 w-4" /> Recent activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {activityLoading ? (
+                  <Skeleton className="h-24" />
+                ) : (activity || []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No activity yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {(activity || []).slice(0, 8).map((a: any) => (
+                      <li key={a.id} className="flex items-start gap-2 text-sm">
+                        <Badge variant="outline" className="mt-0.5 shrink-0 font-mono text-[10px]">{a.action}</Badge>
+                        <span className="min-w-0">
+                          <span className="block truncate text-muted-foreground">{a.detail ? JSON.stringify(a.detail).slice(0, 80) : ""}</span>
+                          <span className="block text-xs text-muted-foreground/70">{a.created_at}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function funnelData(funnel: any) {
+  const order = ["discovered", "with_contact", "profiled", "demo_built", "emails_drafted", "emails_sent", "replied"];
+  const labelM: Record<string, string> = {
+    discovered: "Discovered",
+    with_contact: "With contact",
+    profiled: "Profiled",
+    demo_built: "Demo built",
+    emails_drafted: "Drafted",
+    emails_sent: "Sent",
+    replied: "Replied",
+  };
+  return order.map((key) => ({ name: labelM[key], value: funnel?.[key] ?? 0 }));
 }
