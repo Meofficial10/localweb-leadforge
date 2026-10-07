@@ -1,0 +1,10 @@
+# Gitleaks config for LeadForge (repo is intentionally PUBLIC).
+# Extend the standard rule set rather than maintaining a private fork.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Repo-local allowlist: example values and project scaffolding"
+paths = [
+  '''\.env\.example$''',
+]
