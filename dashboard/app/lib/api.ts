@@ -112,10 +112,13 @@ export const complianceApi = {
 };
 
 export const integrationsApi = {
-  list: () => get<{ cards: IntegrationCard[]; secrets: SecretMeta[] }>("/integrations"),
+  list: () => get<{ cards: IntegrationCard[]; health: IntegrationHealth; required_ids: string[]; force_dry_run: boolean }>("/integrations"),
   setSecret: (key: string, value: string) => post("/integrations/secrets", { key, value }),
   clearSecret: (key: string) => del(`/integrations/secrets/${key}`),
-  test: (id: string) => post<{ ok: boolean; message: string }>(`/integrations/${id}/test`),
+  test: (id: string) => post<{ ok: boolean; message: string; detail?: string; latency_ms?: number; at?: string }>(`/integrations/${id}/test`),
+  configure: (id: string, values: Record<string, unknown>) => post<{ config: Record<string, unknown>; test: { ok: boolean; message: string; detail?: string; latency_ms?: number } }>(`/integrations/${id}/configure`, { values }),
+  configureIntegration: (id: string, values: Record<string, unknown>) => post<{ config: Record<string, unknown>; test: { ok: boolean; message: string; detail?: string; latency_ms?: number } }>(`/integrations/${id}/configure`, { values }),
+  models: (provider: string, baseUrl?: string) => get<{ models: string[] }>(`/integrations/llm/models`, { provider, base_url: baseUrl || "" }),
 };
 
 export const settingsApi = {
@@ -192,11 +195,32 @@ export interface Metrics {
   funnel: Record<string, number>;
   leads_per_day: { date: string; count: number }[];
 }
+export interface IntegrationStatus {
+  state: "disabled" | "not_configured" | "configured" | "connected" | "error";
+  label: string; color: "gray" | "yellow" | "green" | "red"; icon: string;
+  detail: string; last_checked?: string | null;
+}
+export interface ProviderDef {
+  id: string; label: string; needs_key: boolean; key_secret_key: string;
+  base_url_default: string; base_url_editable: boolean; static_models: string[];
+  probe_url?: string | null; note: string;
+}
+export interface FieldDef {
+  key: string; label: string; type: string; placeholder: string; help: string;
+  options?: string[] | null; default?: unknown;
+}
 export interface IntegrationCard {
-  id: string; name: string; kind: string; configured: boolean; detail?: string;
+  id: string; name: string; kind: string; required: boolean; description: string;
+  providers: ProviderDef[]; fields: FieldDef[];
+  provider: string; config: Record<string, unknown>;
+  status: IntegrationStatus; secret: SecretMeta | null;
 }
 export interface SecretMeta {
   key: string; is_set: boolean; masked: string; last_verified_at?: string | null;
+}
+export interface IntegrationHealth {
+  working: number; required: number; ok: boolean; message: string;
+  checklist: { id: string; name: string; required: boolean; state: string; label: string; detail: string; ok: boolean }[];
 }
 export interface AppSettings {
   daily_email_cap: number; daily_call_cap: number;

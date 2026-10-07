@@ -78,25 +78,83 @@ def test_metrics_shape(client):
     assert "funnel" in m and "leads_per_day" in m
 
 
-def test_integrations_secrets_masked(client):
+def test_integrations_catalog_status_and_configure(client):
     r = client.get("/integrations")
     assert r.status_code == 200
-    assert len(r.json()["cards"]) == 7
-    secrets = r.json()["secrets"]
-    assert all(s["masked"] == "" for s in secrets if not s["is_set"])
-    # set a secret
+    body = r.json()
+    ids = [c["id"] for c in body["cards"]]
+    assert "llm" in ids and "places" in ids and "osm" in ids and "apify" in ids
+    assert "hosting" in ids and "email" in ids and "identity" in ids and "voice" in ids and "dnc" in ids
+    # health summary present ("X of Y required integrations working")
+    h = body["health"]
+    assert h["required"] == 3 and h["ok"] is False
+    assert h["message"] == "0 of 3 required integrations working"
+    # every card has a status pill state
+    for c in body["cards"]:
+        assert c["status"]["state"] in ("disabled", "not_configured", "configured", "connected", "error")
+    # identity is "not_configured" (no fields set) but not secret-gated
+    idc = next(c for c in body["cards"] if c["id"] == "identity")
+    assert idc["status"]["state"] == "not_configured"
+
+
+def test_integration_save_identity_and_health(client):
+    # set sender identity -> becomes 'connected' and health improves
+    r = client.post("/integrations/identity/configure", json={"values": {
+        "sender_name": "Alice", "sender_email": "alice@example.com",
+        "physical_address": "1 Sentosa Cove, Singapore",
+    }})
+    assert r.status_code == 200
+    assert r.json()["test"]["ok"] is True
+    h = client.get("/integrations").json()["health"]
+    # identity ok -> 1 of 3
+    assert h["message"] == "1 of 3 required integrations working"
+
+
+def test_integrations_secrets_masked_and_test(client):
+    r = client.get("/integrations")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["cards"]) == 9
+    # set a secret via legacy path
     setr = client.post("/integrations/secrets", json={"key": "email.brevo.api_key", "value": "BKEY-secret-1234"})
     assert setr.status_code == 200
-    body = setr.json()
-    assert body["is_set"] is True
-    assert "KEY-secret-" not in body["masked"]  # never expose value
-    assert body["masked"].endswith("1234")
-    # test connection
+    assert setr.json()["is_set"] is True
+    assert setr.json()["masked"].endswith("1234")
+    assert "BKEY-secret-" not in setr.json()["masked"]
+    # select brevo provider so the card exposes the secret, then re-test
+    cf = client.post("/integrations/email/configure", json={"values": {"provider": "brevo"}})
+    assert cf.status_code == 200
+    ecard = next(c for c in client.get("/integrations").json()["cards"] if c["id"] == "email")
+    assert ecard["secret"] is not None and ecard["secret"]["is_set"] is True
+    # test connection (no network needed for credential checks)
     tres = client.post("/integrations/email/test")
-    assert tres.json()["ok"] is True or tres.json()["message"] != ""
+    assert tres.status_code == 200
+    assert tres.json()["ok"] is True
     # clear
     clr = client.delete("/integrations/secrets/email.brevo.api_key")
     assert clr.json()["cleared"] is True
+
+
+def test_integration_configure_rejects_unknown_provider(client):
+    r = client.post("/integrations/llm/configure", json={"values": {"provider": "hacker-site"}})
+    assert r.status_code == 400
+
+
+def test_integration_unknown_id_404(client):
+    assert client.post("/integrations/nope/test").status_code == 404
+    assert client.post("/integrations/nope/configure", json={"values": {}}).status_code == 404
+
+
+def test_integration_llm_ollama_test_uses_base_url(client):
+    # configure ollama pointing at a dead host -> test returns ok=False with a fix hint
+    r = client.post("/integrations/llm/configure", json={"values": {
+        "provider": "ollama", "base_url": "http://127.0.0.1:59999", "model": "qwen2.5:7b",
+    }})
+    assert r.status_code == 200
+    body = r.json()
+    # auto-test after save should attempt the connection and fail fast
+    assert body["test"]["ok"] is False
+    assert "Ollama" in body["test"]["message"] or "unreachable" in body["test"]["message"]
 
 
 def test_settings_and_delete_request(client):
