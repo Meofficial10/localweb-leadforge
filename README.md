@@ -45,6 +45,25 @@ npm run reset -- --seed
 - **Run polling is bounded**: active Apify runs are polled only while `running`/
   `queued`, on a 3–5s interval, and the poll stops once the run reaches a terminal
   state (`done`/`failed`).
+
+## UI polish (M6)
+
+- **Run view** — every campaign card has a **View run** action that opens a live
+  pipeline dialog: stages `Discover / Enrich / Profile / Demo / Draft / Send` with
+  per-stage counts and a progress bar, recent Apify runs (status, items fetched,
+  leads imported, estimated cost, error messages) and a per-job health list.
+  It polls `/campaigns/{id}/runs` at 4s **only while a run is active** and stops
+  once idle. Dry-run note is shown in the dialog footer.
+- **First-run onboarding checklist** on Overview — "Getting started" guides the
+  5 setup steps: connect an LLM, connect a lead source, set sender identity,
+  create a campaign, review drafts — each links to the right page and shows a
+  progress percentage that hides once all steps are complete.
+- **Command palette** — `Ctrl/⌘+K` opens a searchable command/app palette from
+  anywhere; every icon button has a tooltip and pages use the shared `PageHeader`
+  title + badge pattern.
+- **Consistent design system** — shadcn-style primitives (buttons, cards, badges,
+  dialogs, tooltips, progress, skeletons, toasts) with state pills that pair an
+  icon with text (never colour alone) for WCAG AA.
 **What `npm run dev` starts:**
 
 | Prefix | Process | URL |
