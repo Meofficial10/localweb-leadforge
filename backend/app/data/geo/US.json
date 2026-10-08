@@ -1,0 +1,37 @@
+{
+  "code": "US",
+  "states": [
+    {
+      "state": "California",
+      "cities": ["Los Angeles","San Diego","San Francisco","San Jose","Fresno","Sacramento"]
+    },
+    {
+      "state": "Texas",
+      "cities": ["Houston","Dallas","Austin","San Antonio","Fort Worth"]
+    },
+    {
+      "state": "New York",
+      "cities": ["Manhattan","Brooklyn","Queens","Bronx","Buffalo"]
+    },
+    {
+      "state": "Florida",
+      "cities": ["Miami","Orlando","Tampa","Jacksonville","Fort Lauderdale"]
+    },
+    {
+      "state": "Washington",
+      "cities": ["Seattle","Spokane","Tacoma","Bellevue"]
+    },
+    {
+      "state": "Illinois",
+      "cities": ["Chicago","Aurora","Naperville","Rockford"]
+    },
+    {
+      "state": "Massachusetts",
+      "cities": ["Boston","Cambridge","Worcester","Springfield"]
+    },
+    {
+      "state": "Georgia",
+      "cities": ["Atlanta","Savannah","Augusta","Macon"]
+    }
+  ]
+}

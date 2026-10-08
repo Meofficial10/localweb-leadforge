@@ -15,7 +15,7 @@ import {
 } from "@/app/components/ui/alert-dialog";
 import { asError } from "@/app/lib/utils";
 
-export function CampaignCard({ campaign, onEdit }: { campaign: Campaign; onEdit: (c: Campaign) => void }) {
+export function CampaignCard({ campaign, onEdit, onDuplicate }: { campaign: Campaign; onEdit: (c: Campaign) => void; onDuplicate?: (c: Campaign) => void }) {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: ["campaigns"] });
 
@@ -67,7 +67,7 @@ export function CampaignCard({ campaign, onEdit }: { campaign: Campaign; onEdit:
           <Button size="sm" variant="outline" onClick={() => onEdit(campaign)}>
             <Pencil className="h-3.5 w-3.5" /> Edit
           </Button>
-          <Button size="sm" variant="outline" onClick={() => duplicate.mutate()}>
+          <Button size="sm" variant="outline" onClick={() => (onDuplicate ? onDuplicate(campaign) : duplicate.mutate())}>
             <Copy className="h-3.5 w-3.5" /> Duplicate
           </Button>
           <Button size="sm" variant="outline" onClick={() => run.mutate()} title="Run discovery pipeline once (dry-run)">

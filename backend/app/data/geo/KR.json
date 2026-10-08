@@ -1,0 +1,17 @@
+{
+  "code": "KR",
+  "states": [
+    {
+      "state": "Seoul",
+      "cities": ["Gangnam","Myeongdong","Hongdae","Itaewon","Jongno","Yeouido"]
+    },
+    {
+      "state": "Busan",
+      "cities": ["Haeundae","Seomyeon","Nampo-dong","Gwangalli"]
+    },
+    {
+      "state": "Incheon",
+      "cities": ["Songdo","Bupyeong","Michuhol"]
+    }
+  ]
+}

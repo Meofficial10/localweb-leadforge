@@ -1,0 +1,17 @@
+{
+  "code": "PH",
+  "states": [
+    {
+      "state": "Metro Manila",
+      "cities": ["Makati","BGC (Taguig)","Quezon City","Manila","Mandaluyong","Pasig","Ortigas"]
+    },
+    {
+      "state": "Cebu",
+      "cities": ["Cebu City","Mandaue","Lapu-Lapu","Talisay"]
+    },
+    {
+      "state": "Davao",
+      "cities": ["Davao City","Toril","Calinan"]
+    }
+  ]
+}

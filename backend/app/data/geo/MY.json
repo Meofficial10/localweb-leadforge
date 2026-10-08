@@ -1,0 +1,17 @@
+{
+  "code": "MY",
+  "states": [
+    {
+      "state": "Kuala Lumpur",
+      "cities": ["Bukit Bintang","KLCC","Bangsar","Cheras","Mont Kiara","Damansara","Kepong","Setapak","Wangsa Maju"]
+    },
+    {
+      "state": "Selangor",
+      "cities": ["Petaling Jaya","Subang Jaya","Shah Alam","Klang","Ampang","Rawang","Puchong"]
+    },
+    {
+      "state": "Penang",
+      "cities": ["George Town","Gelugor","Bayan Lepas","Butterworth","Nibong Tebal"]
+    }
+  ]
+}

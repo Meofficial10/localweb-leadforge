@@ -1,0 +1,17 @@
+{
+  "code": "AE",
+  "states": [
+    {
+      "state": "Dubai",
+      "cities": ["Downtown Dubai","Dubai Marina","Jumeirah","Deira","Business Bay","Al Barsha"]
+    },
+    {
+      "state": "Abu Dhabi",
+      "cities": ["Corniche","Al Reem Island","Yas Island","Khalifa City"]
+    },
+    {
+      "state": "Sharjah",
+      "cities": ["Al Majaz","Al Nahda"]
+    }
+  ]
+}

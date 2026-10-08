@@ -25,6 +25,7 @@ from app.api.routers.queue import router as queue_router
 from app.api.routers.inbox import router as inbox_router
 from app.api.routers.calls import router as calls_router
 from app.api.routers.integrations import router as integrations_router
+from app.api.routers.locations import router as locations_router
 from app.api.routers.settings_routes import router as settings_router
 
 
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(inbox_router)
     app.include_router(calls_router)
     app.include_router(integrations_router)
+    app.include_router(locations_router)
     app.include_router(settings_router)
     return app
 

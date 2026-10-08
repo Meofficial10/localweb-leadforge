@@ -1,0 +1,25 @@
+{
+  "code": "CN",
+  "states": [
+    {
+      "state": "Beijing",
+      "cities": ["Chaoyang","Dongcheng","Xicheng","Haidian","Fengtai","Shijingshan","Wangjing","Yizhuang"]
+    },
+    {
+      "state": "Shanghai",
+      "cities": ["Pudong","Huangpu","Xuhui","Jingan","Changning","Hongqiao","Minhang","Putuo"]
+    },
+    {
+      "state": "Guangdong",
+      "cities": ["Guangzhou","Shenzhen","Dongguan","Foshan","Zhuhai"]
+    },
+    {
+      "state": "Zhejiang",
+      "cities": ["Hangzhou","Ningbo","Wenzhou","Shaoxing"]
+    },
+    {
+      "state": "Sichuan",
+      "cities": ["Chengdu","Mianyang","Deyang","Leshan"]
+    }
+  ]
+}

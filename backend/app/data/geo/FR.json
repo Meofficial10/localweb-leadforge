@@ -1,0 +1,21 @@
+{
+  "code": "FR",
+  "states": [
+    {
+      "state": "Ile-de-France",
+      "cities": ["Paris","Boulogne-Billancourt","Saint-Denis","Versailles","Nanterre"]
+    },
+    {
+      "state": "Provence-Alpes-Cote d Azur",
+      "cities": ["Marseille","Nice","Toulon","Aix-en-Provence"]
+    },
+    {
+      "state": "Auvergne-Rhone-Alpes",
+      "cities": ["Lyon","Grenoble","Saint-Etienne"]
+    },
+    {
+      "state": "Nouvelle-Aquitaine",
+      "cities": ["Bordeaux","Biarritz","Limoges"]
+    }
+  ]
+}

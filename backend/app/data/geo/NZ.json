@@ -1,0 +1,17 @@
+{
+  "code": "NZ",
+  "states": [
+    {
+      "state": "Auckland",
+      "cities": ["Auckland Central","North Shore","Manukau","Ponsonby"]
+    },
+    {
+      "state": "Wellington",
+      "cities": ["Wellington CBD","Lower Hutt","Porirua"]
+    },
+    {
+      "state": "Canterbury",
+      "cities": ["Christchurch","Timaru"]
+    }
+  ]
+}

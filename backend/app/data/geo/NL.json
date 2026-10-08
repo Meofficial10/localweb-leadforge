@@ -1,0 +1,21 @@
+{
+  "code": "NL",
+  "states": [
+    {
+      "state": "North Holland",
+      "cities": ["Amsterdam","Haarlem","Alkmaar","Hilversum"]
+    },
+    {
+      "state": "South Holland",
+      "cities": ["Rotterdam","The Hague","Leiden","Delft"]
+    },
+    {
+      "state": "Utrecht",
+      "cities": ["Utrecht","Amersfoort"]
+    },
+    {
+      "state": "North Brabant",
+      "cities": ["Eindhoven","Tilburg","Breda","Helmond"]
+    }
+  ]
+}

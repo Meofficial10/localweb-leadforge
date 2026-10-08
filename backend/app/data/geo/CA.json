@@ -1,0 +1,21 @@
+{
+  "code": "CA",
+  "states": [
+    {
+      "state": "Ontario",
+      "cities": ["Toronto","Ottawa","Mississauga","Hamilton","London"]
+    },
+    {
+      "state": "British Columbia",
+      "cities": ["Vancouver","Victoria","Kelowna","Surrey"]
+    },
+    {
+      "state": "Quebec",
+      "cities": ["Montreal","Quebec City","Laval","Gatineau"]
+    },
+    {
+      "state": "Alberta",
+      "cities": ["Calgary","Edmonton","Red Deer"]
+    }
+  ]
+}

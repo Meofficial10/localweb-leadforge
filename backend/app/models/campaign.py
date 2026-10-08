@@ -33,5 +33,9 @@ class Campaign(Base, TimestampMixin):
 
     cron_schedule: Mapped[dict | None] = mapped_column(JSONType, nullable=True)  # {preset?, hour,minute,days}
 
+    budget_cap: Mapped[float | None] = mapped_column(Float, nullable=True)  # per-campaign budget cap (US$)
+    channels: Mapped[list | None] = mapped_column(JSONType, nullable=True)  # ["email","voice"]
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     mode: Mapped[str] = mapped_column(String(16), default="dry_run")
     is_paused: Mapped[bool] = mapped_column(Boolean, default=False)

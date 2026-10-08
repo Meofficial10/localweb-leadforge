@@ -1,0 +1,29 @@
+{
+  "code": "AU",
+  "states": [
+    {
+      "state": "New South Wales",
+      "cities": ["Sydney","Newcastle","Wollongong","Central Coast"]
+    },
+    {
+      "state": "Victoria",
+      "cities": ["Melbourne","Geelong","Ballarat","Bendigo"]
+    },
+    {
+      "state": "Queensland",
+      "cities": ["Brisbane","Gold Coast","Sunshine Coast","Cairns","Townsville"]
+    },
+    {
+      "state": "Western Australia",
+      "cities": ["Perth","Fremantle","Bunbury","Mandurah"]
+    },
+    {
+      "state": "South Australia",
+      "cities": ["Adelaide","Mount Gambier"]
+    },
+    {
+      "state": "Tasmania",
+      "cities": ["Hobart","Launceston"]
+    }
+  ]
+}

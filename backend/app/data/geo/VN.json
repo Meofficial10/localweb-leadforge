@@ -1,0 +1,17 @@
+{
+  "code": "VN",
+  "states": [
+    {
+      "state": "Ho Chi Minh",
+      "cities": ["District 1","District 3","District 7","Binh Thanh","Phu Nhuan","Tan Binh"]
+    },
+    {
+      "state": "Hanoi",
+      "cities": ["Hoan Kiem","Ba Dinh","Dong Da","Hai Ba Trung","Tay Ho","Cau Giay"]
+    },
+    {
+      "state": "Da Nang",
+      "cities": ["Hai Chau","Son Tra","Ngu Hanh Son"]
+    }
+  ]
+}

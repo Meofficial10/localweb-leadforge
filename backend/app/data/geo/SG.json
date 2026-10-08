@@ -1,0 +1,9 @@
+{
+  "code": "SG",
+  "states": [
+    {
+      "state": "Singapore",
+      "cities": ["Orchard","Bukit Timah","Tampines","Jurong East","Toa Payoh","Ang Mo Kio","Bedok","Woodlands","Changi","Marina Bay","Clementi","Queenstown","Punggol","Sengkang","Yishun","Serangoon","Hougang","Bishan","Novena","Bugis","Tanjong Pagar","Raffles Place","Chinatown","Little India","Geylang","Kallang","Pasir Ris","Bukit Batok","Bukit Panjang","Sembawang","River Valley","Holland Village","Telok Blangah","Timah","Kranji","Lim Chu Kang"]
+    }
+  ]
+}

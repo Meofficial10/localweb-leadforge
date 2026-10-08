@@ -34,6 +34,9 @@ class CampaignCreate(BaseModel):
     approval_mode: str = 'manual'  # auto | manual
     cron_schedule: dict | None = None
     mode: str = 'dry_run'
+    description: Optional[str] = None
+    channels: Optional[list[str]] = None
+    budget_cap: Optional[float] = None
 
 
 class CampaignUpdate(BaseModel):
@@ -55,6 +58,9 @@ class CampaignUpdate(BaseModel):
     cron_schedule: Optional[dict] = None
     mode: Optional[str] = None
     is_paused: Optional[bool] = None
+    description: Optional[str] = None
+    channels: Optional[list[str]] = None
+    budget_cap: Optional[float] = None
 
 
 def _serialize(camp: Campaign) -> dict:
@@ -78,6 +84,9 @@ def _serialize(camp: Campaign) -> dict:
         'cron_schedule': camp.cron_schedule,
         'mode': camp.mode,
         'is_paused': camp.is_paused,
+        'description': camp.description,
+        'channels': camp.channels or [],
+        'budget_cap': camp.budget_cap,
         'created_at': str(camp.created_at) if camp.created_at else None,
         'updated_at': str(camp.updated_at) if getattr(camp, 'updated_at', None) else None,
     }
@@ -116,6 +125,9 @@ def create_campaign(payload: CampaignCreate, db: Session = Depends(get_session))
         cron_schedule=payload.cron_schedule,
         mode=mode,
         is_paused=False,
+        description=payload.description,
+        channels=payload.channels or None,
+        budget_cap=payload.budget_cap,
     )
     db.add(camp)
     db.commit()
@@ -208,8 +220,65 @@ def duplicate_campaign(campaign_id: str, db: Session = Depends(get_session)):
     record(db, action='campaign_duplicated', detail={'src': src.id, 'copy': copy.id})
     return _serialize(copy)
 
-class RunView(BaseModel):
-    pass
+
+class WizardStepErrors(BaseModel):
+    ok: bool
+    errors: list[str] = Field(default_factory=list)
+
+
+class WizardState(BaseModel):
+    name: str = ''
+    description: str | None = None
+    country: str = 'SG'
+    state: str = ''
+    city: str = ''
+    towns: list[str] = Field(default_factory=list)
+    whole_city: bool = False
+    area_radius_km: float | None = None
+    categories: list[str] = Field(default_factory=list)
+    custom_categories: list[str] = Field(default_factory=list)
+    min_rating: float | None = None
+    min_review_count: int | None = None
+    only_phone: bool = False
+    only_email: bool = False
+    lead_sources: list[str] = Field(default_factory=list)
+    channels: list[str] = Field(default_factory=list)
+    daily_email_cap: int | None = None
+    daily_call_cap: int | None = None
+    send_window: dict | None = None
+    timezone: str = 'Asia/Singapore'
+    warm_up_enabled: bool = False
+    followup_delay_days: int = 4
+    approval_mode: str = 'manual'
+    run_schedule: str = 'manual'  # manual | daily | weekdays
+    max_leads_per_run: int | None = None
+    budget_cap: float | None = None
+    mode: str = 'dry_run'
+
+
+@router.post('/validate')
+def validate_campaign_wizard(payload: WizardState):
+    """Server-side validation helper for the 4-step wizard.
+
+    Returns per-step error lists so the wizard can flag invalid steps as the
+    user navigates, mirroring client-side validation (source of truth remains
+    the store's zod checks; this endpoint is a second gate used by tests and
+    by Create actions).
+    """
+    errors: dict[str, list[str]] = {f'step{i}': [] for i in range(1, 5)}
+    # step 1 - basics
+    if not payload.name or len(payload.name.strip()) < 2:
+        errors['step1'].append('Campaign name is required (min 2 chars).')
+    if not payload.lead_sources:
+        errors['step1'].append('Choose at least one lead source (Google Maps, OSM or Apify).')
+    # step 2 - location
+    if not payload.city and not payload.towns:
+        errors['step2'].append('Choose a city (or whole-city) or add at least one town.')
+    # step 3 - business types
+    if not payload.categories and not payload.custom_categories:
+        errors['step3'].append('Pick at least one business type (or add a custom tag).')
+    return {k: {'ok': not v, 'errors': v} for k, v in errors.items()}
+
 
 @router.get('/{campaign_id}/runs')
 def list_campaign_runs(campaign_id: str, db: Session = Depends(get_session)):

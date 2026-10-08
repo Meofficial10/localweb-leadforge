@@ -1,0 +1,124 @@
+{
+ "countries": [
+  {
+   "code": "SG",
+   "name": "Singapore",
+   "flag": "🇸🇬",
+   "label": "Singapore"
+  },
+  {
+   "code": "MY",
+   "name": "Malaysia",
+   "flag": "🇲🇾",
+   "label": "Malaysia"
+  },
+  {
+   "code": "ID",
+   "name": "Indonesia",
+   "flag": "🇮🇩",
+   "label": "Indonesia"
+  },
+  {
+   "code": "TH",
+   "name": "Thailand",
+   "flag": "🇹🇭",
+   "label": "Thailand"
+  },
+  {
+   "code": "VN",
+   "name": "Vietnam",
+   "flag": "🇻🇳",
+   "label": "Vietnam"
+  },
+  {
+   "code": "PH",
+   "name": "Philippines",
+   "flag": "🇵🇭",
+   "label": "Philippines"
+  },
+  {
+   "code": "IN",
+   "name": "India",
+   "flag": "🇮🇳",
+   "label": "India"
+  },
+  {
+   "code": "CN",
+   "name": "China",
+   "flag": "🇨🇳",
+   "label": "China"
+  },
+  {
+   "code": "JP",
+   "name": "Japan",
+   "flag": "🇯🇵",
+   "label": "Japan"
+  },
+  {
+   "code": "KR",
+   "name": "South Korea",
+   "flag": "🇰🇷",
+   "label": "South Korea"
+  },
+  {
+   "code": "AE",
+   "name": "United Arab Emirates",
+   "flag": "🇦🇪",
+   "label": "United Arab Emirates"
+  },
+  {
+   "code": "SA",
+   "name": "Saudi Arabia",
+   "flag": "🇸🇦",
+   "label": "Saudi Arabia"
+  },
+  {
+   "code": "AU",
+   "name": "Australia",
+   "flag": "🇦🇺",
+   "label": "Australia"
+  },
+  {
+   "code": "NZ",
+   "name": "New Zealand",
+   "flag": "🇳🇿",
+   "label": "New Zealand"
+  },
+  {
+   "code": "GB",
+   "name": "United Kingdom",
+   "flag": "🇬🇧",
+   "label": "United Kingdom"
+  },
+  {
+   "code": "US",
+   "name": "United States",
+   "flag": "🇺🇸",
+   "label": "United States"
+  },
+  {
+   "code": "DE",
+   "name": "Germany",
+   "flag": "🇩🇪",
+   "label": "Germany"
+  },
+  {
+   "code": "FR",
+   "name": "France",
+   "flag": "🇫🇷",
+   "label": "France"
+  },
+  {
+   "code": "CA",
+   "name": "Canada",
+   "flag": "🇨🇦",
+   "label": "Canada"
+  },
+  {
+   "code": "NL",
+   "name": "Netherlands",
+   "flag": "🇳🇱",
+   "label": "Netherlands"
+  }
+ ]
+}

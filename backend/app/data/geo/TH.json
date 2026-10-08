@@ -1,0 +1,21 @@
+{
+  "code": "TH",
+  "states": [
+    {
+      "state": "Bangkok",
+      "cities": ["Sukhumvit","Silom","Sathorn","Siam","Chatuchak","Ratchada","Thonburi","Bang Rak"]
+    },
+    {
+      "state": "Chiang Mai",
+      "cities": ["Old City","Nimman","Chang Khlan","Suthep"]
+    },
+    {
+      "state": "Phuket",
+      "cities": ["Patong","Kata","Karon","Phuket Town"]
+    },
+    {
+      "state": "Pattaya",
+      "cities": ["Central Pattaya","Jomtien","North Pattaya"]
+    }
+  ]
+}

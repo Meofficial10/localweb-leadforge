@@ -64,6 +64,30 @@ export const campaignsApi = {
   run: (id: string) => post(`/campaigns/${id}/run`),
   pause: (id: string, paused: boolean) => patch<Campaign>(`/campaigns/${id}/pause?paused=${paused}`, undefined),
   duplicate: (id: string) => post<Campaign>(`/campaigns/${id}/duplicate`),
+  validate: (state: Record<string, any>) => post<Record<string, {ok: boolean; errors: string[]}>>('/campaigns/validate', state),
+  runs: (id: string) => get<{apify_runs: any[]}>(`/campaigns/${id}/runs`),
+};
+
+export interface WizardStepState {
+  name?: string; description?: string | null;
+  country?: string; state?: string; city?: string;
+  towns?: string[]; whole_city?: boolean; area_radius_km?: number | null;
+  categories?: string[]; custom_categories?: string[];
+  min_rating?: number | null; min_review_count?: number | null;
+  only_phone?: boolean; only_email?: boolean;
+  lead_sources?: string[]; channels?: string[];
+  daily_email_cap?: number | null; daily_call_cap?: number | null;
+  send_window?: Record<string, any> | null; timezone?: string;
+  warm_up_enabled?: boolean; followup_delay_days?: number;
+  approval_mode?: string; run_schedule?: string;
+  max_leads_per_run?: number | null; budget_cap?: number | null;
+  mode?: string;
+}
+
+export const locationsApi = {
+  countries: () => get<{countries: {code: string; name: string; flag: string}[]}>('/locations/countries'),
+  states: (code: string) => get<{states: string[]}>(`/locations/${code}/states`),
+  cities: (code: string, state?: string) => get<{cities: string[]}>(`/locations/${code}/cities?state=${encodeURIComponent(state || '')}`),
 };
 
 
@@ -140,6 +164,9 @@ export interface Campaign {
   id: string; name: string; country: string; city: string;
   area_radius_km?: number | null; categories: string[]; lead_source: string;
   lead_sources?: string[] | null;
+  description?: string | null;
+  channels?: string[] | null;
+  budget_cap?: number | null;
   daily_email_cap: number; daily_call_cap: number; max_leads_per_run?: number | null;
   send_window?: Record<string, any> | null; timezone: string;
   warm_up_schedule?: Record<string, any> | null; followup_delay_days: number;

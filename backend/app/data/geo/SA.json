@@ -1,0 +1,17 @@
+{
+  "code": "SA",
+  "states": [
+    {
+      "state": "Riyadh",
+      "cities": ["Al Olaya","Al Malaz","North Riyadh","South Riyadh"]
+    },
+    {
+      "state": "Jeddah",
+      "cities": ["Al Shati","Al Rawdah","Al Hamra"]
+    },
+    {
+      "state": "Dubai-adjacent Gulf",
+      "cities": ["Dammam","Khobar"]
+    }
+  ]
+}

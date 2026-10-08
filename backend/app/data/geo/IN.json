@@ -1,0 +1,25 @@
+{
+  "code": "IN",
+  "states": [
+    {
+      "state": "Delhi NCR",
+      "cities": ["Connaught Place","Karol Bagh","South Delhi","Gurgaon","Noida"]
+    },
+    {
+      "state": "Maharashtra",
+      "cities": ["Mumbai","Pune","Navi Mumbai","Thane"]
+    },
+    {
+      "state": "Karnataka",
+      "cities": ["Bengaluru","Mysuru","Mangaluru","Hubli"]
+    },
+    {
+      "state": "Tamil Nadu",
+      "cities": ["Chennai","Coimbatore","Madurai"]
+    },
+    {
+      "state": "Telangana",
+      "cities": ["Hyderabad","Secunderabad"]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "code": "JP",
+  "states": [
+    {
+      "state": "Tokyo",
+      "cities": ["Shibuya","Shinjuku","Ginza","Asakusa","Roppongi","Ueno","Ikebukuro"]
+    },
+    {
+      "state": "Osaka",
+      "cities": ["Namba","Umeda","Tennoji","Osaka Bay"]
+    },
+    {
+      "state": "Kyoto",
+      "cities": ["Gion","Arashiyama","Kyoto Station Area","Kamigyo"]
+    },
+    {
+      "state": "Aichi",
+      "cities": ["Nagoya","Sakae","Kanayama"]
+    },
+    {
+      "state": "Fukuoka",
+      "cities": ["Hakata","Tenjin","Daimyo"]
+    }
+  ]
+}

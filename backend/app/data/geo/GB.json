@@ -1,0 +1,21 @@
+{
+  "code": "GB",
+  "states": [
+    {
+      "state": "England",
+      "cities": ["London","Manchester","Birmingham","Leeds","Liverpool","Bristol","Sheffield","Newcastle"]
+    },
+    {
+      "state": "Scotland",
+      "cities": ["Edinburgh","Glasgow","Aberdeen","Dundee"]
+    },
+    {
+      "state": "Wales",
+      "cities": ["Cardiff","Swansea","Newport"]
+    },
+    {
+      "state": "Northern Ireland",
+      "cities": ["Belfast","Derry"]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "code": "DE",
+  "states": [
+    {
+      "state": "Berlin",
+      "cities": ["Mitte","Kreuzberg","Prenzlauer Berg","Charlottenburg","Neukoelln","Friedrichshain"]
+    },
+    {
+      "state": "Bavaria",
+      "cities": ["Munich","Nuremberg","Augsburg","Regensburg"]
+    },
+    {
+      "state": "Hamburg",
+      "cities": ["Altona","Eppendorf","St. Pauli","Harburg"]
+    },
+    {
+      "state": "North Rhine-Westphalia",
+      "cities": ["Cologne","Duesseldorf","Dortmund","Essen"]
+    }
+  ]
+}

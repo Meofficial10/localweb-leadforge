@@ -1,0 +1,25 @@
+{
+  "code": "ID",
+  "states": [
+    {
+      "state": "Jakarta",
+      "cities": ["Central Jakarta","South Jakarta","West Jakarta","East Jakarta","North Jakarta","Kemang","Menteng","Kuningan","Kelapa Gading","Pondok Indah","Sunter","Bintaro","BSD"]
+    },
+    {
+      "state": "Bali",
+      "cities": ["Denpasar","Ubud","Kuta","Seminyak","Canggu","Sanur","Nusa Dua"]
+    },
+    {
+      "state": "West Java",
+      "cities": ["Bandung","Bekasi","Bogor","Depok","Cimahi"]
+    },
+    {
+      "state": "Yogyakarta",
+      "cities": ["Yogyakarta","Sleman","Bantul"]
+    },
+    {
+      "state": "East Java",
+      "cities": ["Surabaya","Malang","Gresik","Sidoarjo"]
+    }
+  ]
+}
