@@ -19,7 +19,8 @@ class Campaign(Base, TimestampMixin):
     city: Mapped[str] = mapped_column(String(128), nullable=False)
     area_radius_km: Mapped[float | None] = mapped_column(Float, nullable=True)
     categories: Mapped[list] = mapped_column(JSONType, default=list)
-    lead_source: Mapped[str] = mapped_column(String(16), default="both")  # google | osm | both
+    lead_source: Mapped[str] = mapped_column(String(16), default="both")  # legacy single-source selector
+    lead_sources: Mapped[list | None] = mapped_column(JSONType, nullable=True)  # ["google","osm","apify"] multi-select
 
     daily_email_cap: Mapped[int] = mapped_column(Integer, default=20)
     daily_call_cap: Mapped[int] = mapped_column(Integer, default=10)

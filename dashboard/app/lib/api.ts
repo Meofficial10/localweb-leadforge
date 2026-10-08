@@ -139,6 +139,7 @@ export const systemApi = {
 export interface Campaign {
   id: string; name: string; country: string; city: string;
   area_radius_km?: number | null; categories: string[]; lead_source: string;
+  lead_sources?: string[] | null;
   daily_email_cap: number; daily_call_cap: number; max_leads_per_run?: number | null;
   send_window?: Record<string, any> | null; timezone: string;
   warm_up_schedule?: Record<string, any> | null; followup_delay_days: number;

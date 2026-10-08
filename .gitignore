@@ -34,3 +34,7 @@ Thumbs.db
 # Machine-specific / local state
 .pymods/
 .local/
+
+# Playwright
+playwright-report/
+test-results/

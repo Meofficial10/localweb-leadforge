@@ -25,6 +25,7 @@ const schema = z.object({
   categories: z.string().default(""),
   area_radius_km: z.string().or(z.literal("")).default("5"),
   lead_source: z.string().default("both"),
+  lead_sources: z.array(z.string()).default([]),
   daily_email_cap: z.string().default("50"),
   daily_call_cap: z.string().default("10"),
   max_leads_per_run: z.string().or(z.literal("")),
@@ -44,6 +45,7 @@ function toDefault(cam?: Campaign | null): FormValues {
     categories: (cam?.categories ?? []).join(", "),
     area_radius_km: cam?.area_radius_km != null ? String(cam.area_radius_km) : "5",
     lead_source: cam?.lead_source ?? "both",
+    lead_sources: cam?.lead_sources?.length ? cam.lead_sources : (cam?.lead_source === "google" ? ["google"] : cam?.lead_source === "osm" ? ["osm"] : ["google", "osm"]),
     daily_email_cap: String(cam?.daily_email_cap ?? 50),
     daily_call_cap: String(cam?.daily_call_cap ?? 10),
     max_leads_per_run: cam?.max_leads_per_run != null ? String(cam.max_leads_per_run) : "",
@@ -58,8 +60,9 @@ function toDefault(cam?: Campaign | null): FormValues {
 
 export function CampaignForm({ campaign, onDone }: { campaign?: Campaign | null; onDone: () => void }) {
   const isEdit = !!campaign;
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } =
+  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } =
     useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: toDefault(campaign) });
+  const watchLeadSources = watch("lead_sources");
 
   const onSubmit = async (v: FormValues) => {
     try {
@@ -70,6 +73,7 @@ export function CampaignForm({ campaign, onDone }: { campaign?: Campaign | null;
         country: v.country,
         categories: (v.categories || "").split(",").map((s: string) => s.trim()).filter(Boolean),
         lead_source: (v.lead_source || "both") as "google" | "osm" | "both",
+        lead_sources: v.lead_sources?.length ? v.lead_sources : undefined,
         area_radius_km: v.area_radius_km ? Number(v.area_radius_km) : undefined,
         daily_email_cap: Number(v.daily_email_cap || 50),
         daily_call_cap: Number(v.daily_call_cap || 10),
@@ -123,16 +127,37 @@ export function CampaignForm({ campaign, onDone }: { campaign?: Campaign | null;
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="lead_source">Lead source</Label>
-          <Select value={undefined} onValueChange={(v) => setValue("lead_source", v)}>
-            <SelectTrigger id="lead_source"><SelectValue placeholder="Source" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="both">Google + OSM</SelectItem>
-              <SelectItem value="google">Google Maps</SelectItem>
-              <SelectItem value="osm">OpenStreetMap</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="space-y-2">
+          <Label>Lead sources (multi-select)</Label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              ["google", "Google Maps"],
+              ["osm", "OpenStreetMap"],
+              ["apify", "Apify (scraper)"],
+            ].map(([val, label]) => {
+              const active = (watchLeadSources?.includes(val as string)) ?? (val === "google" || val === "osm" ? ((toDefault(campaign))?.lead_sources?.includes(val as string) ?? false) : false);
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => {
+                    const cur = watch("lead_sources") as string[];
+                    const next = cur.includes(val as string) ? cur.filter((x) => x !== val) : [...cur, val as string];
+                    setValue("lead_sources", next);
+                  }}
+                  aria-pressed={active}
+                  className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                    active ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <span className={`inline-block h-2.5 w-2.5 rounded-sm border border-current ${
+                    active ? "bg-primary" : "bg-transparent"
+                  }`} aria-hidden="true" />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="space-y-1.5">
           <Label>Approval mode</Label>

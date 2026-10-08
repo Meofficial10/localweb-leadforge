@@ -18,10 +18,28 @@ from app.utils import new_uuid
 DISCOVER_STAGE = "discover"
 
 
+def _adapters_for(db: Session, campaign: Campaign) -> list[SourceAdapter]:
+    """Map the campaign's selected lead sources to adapter instances."""
+    chosen = getattr(campaign, "lead_sources", None) or []
+    if not chosen:  # fall back to the legacy single-string field
+        legacy = campaign.lead_source or "both"
+        chosen = ["google", "osm"] if legacy == "both" else [legacy]
+    adapters: list[SourceAdapter] = []
+    for src in chosen:
+        if src == "google":
+            adapters.append(GooglePlacesAdapter())
+        elif src == "osm":
+            adapters.append(OverpassAdapter())
+        elif src == "apify":
+            from app.sources.apify import ApifyAdapter
+            adapters.append(ApifyAdapter(db=db, campaign_id=campaign.id))  # type: ignore[arg-type]
+    return adapters
+
+
 def discover_campaign(db: Session, campaign: Campaign, adapters: list[SourceAdapter] | None = None) -> dict:
     """Run discovery for a campaign. Returns {found, inserted, no_website, deduped}."""
     if adapters is None:
-        adapters = [GooglePlacesAdapter(), OverpassAdapter()]
+        adapters = _adapters_for(db, campaign)
     results = {"found": 0, "no_website": 0, "inserted": 0}
     seen: set[tuple[str, str]] = set()  # dedupe within this run (session may be autoflush=False)
     for adapter in adapters:

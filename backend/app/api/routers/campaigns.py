@@ -10,6 +10,7 @@ from app.config import settings
 from app.core.audit import record
 from app.db import get_session
 from app.models.campaign import Campaign
+from app.models.job import Job
 from app.jobs.pipeline import run_campaign_once
 
 router = APIRouter(prefix='/campaigns', tags=['campaigns'])
@@ -21,7 +22,8 @@ class CampaignCreate(BaseModel):
     city: str
     area_radius_km: Optional[float] = None
     categories: list[str] = Field(default_factory=list)
-    lead_source: str = 'both'  # google | osm | both
+    lead_source: str = 'both'  # google | osm | both (legacy)
+    lead_sources: Optional[list[str]] = None  # ["google","osm","apify"] multi-select
     daily_email_cap: int | None = None
     daily_call_cap: int | None = None
     max_leads_per_run: int | None = None
@@ -41,6 +43,7 @@ class CampaignUpdate(BaseModel):
     area_radius_km: Optional[float] = None
     categories: Optional[list[str]] = None
     lead_source: Optional[str] = None
+    lead_sources: Optional[list[str]] = None
     daily_email_cap: Optional[int] = None
     daily_call_cap: Optional[int] = None
     max_leads_per_run: Optional[int] = None
@@ -63,6 +66,7 @@ def _serialize(camp: Campaign) -> dict:
         'area_radius_km': camp.area_radius_km,
         'categories': camp.categories or [],
         'lead_source': camp.lead_source,
+        'lead_sources': camp.lead_sources or [],
         'daily_email_cap': camp.daily_email_cap,
         'daily_call_cap': camp.daily_call_cap,
         'max_leads_per_run': camp.max_leads_per_run,
@@ -100,6 +104,7 @@ def create_campaign(payload: CampaignCreate, db: Session = Depends(get_session))
         area_radius_km=payload.area_radius_km,
         categories=payload.categories or [],
         lead_source=payload.lead_source,
+        lead_sources=payload.lead_sources or None,
         daily_email_cap=cap_email,
         daily_call_cap=int(payload.daily_call_cap or settings.default_daily_call_cap),
         max_leads_per_run=payload.max_leads_per_run,
@@ -184,6 +189,8 @@ def duplicate_campaign(campaign_id: str, db: Session = Depends(get_session)):
         area_radius_km=src.area_radius_km,
         categories=list(src.categories or []),
         lead_source=src.lead_source,
+        lead_sources=list(src.lead_sources or []) or None,
+
         daily_email_cap=src.daily_email_cap,
         daily_call_cap=src.daily_call_cap,
         max_leads_per_run=src.max_leads_per_run,
@@ -200,3 +207,23 @@ def duplicate_campaign(campaign_id: str, db: Session = Depends(get_session)):
     db.commit()
     record(db, action='campaign_duplicated', detail={'src': src.id, 'copy': copy.id})
     return _serialize(copy)
+
+class RunView(BaseModel):
+    pass
+
+@router.get('/{campaign_id}/runs')
+def list_campaign_runs(campaign_id: str, db: Session = Depends(get_session)):
+    """Run history for the campaign run view (apify actor runs)."""
+    camp = db.get(Campaign, campaign_id)
+    if not camp:
+        raise HTTPException(404, 'campaign not found')
+    from app.models.apify_run import ApifyRun
+    apify_runs = db.query(ApifyRun).filter(ApifyRun.campaign_id == campaign_id).order_by(ApifyRun.created_at.desc()).limit(10).all()
+    return {"apify_runs": [{
+        "id": r.id, "apify_run_id": r.apify_run_id, "actor_id": r.actor_id,
+        "search": r.search, "status": r.status, "items_fetched": r.items_fetched,
+        "leads_imported": r.leads_imported, "estimated_cost_usd": r.estimated_cost_usd,
+        "error": r.error,
+        "created_at": str(r.created_at) if r.created_at else None,
+        "finished_at": str(r.finished_at) if r.finished_at else None,
+    } for r in apify_runs], "jobs": []}

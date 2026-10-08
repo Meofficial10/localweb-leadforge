@@ -11,9 +11,10 @@ from app.models.job import Job
 from app.models.audit_log import AuditLog
 from app.models.settings_meta import SettingKV
 from app.models.integration_secret import IntegrationSecret, DemoProject
+from app.models.apify_run import ApifyRun
 
 __all__ = [
     "Base", "Campaign", "Lead", "Contact", "Profile", "DemoSite",
     "Message", "Call", "Suppression", "Job", "AuditLog", "SettingKV",
-    "IntegrationSecret", "DemoProject",
+    "IntegrationSecret", "DemoProject", "ApifyRun",
 ]
