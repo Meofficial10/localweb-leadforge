@@ -33,7 +33,7 @@ if (!existsSync(venvPy)) {
 // --- 2. backend deps (editable install incl. dev extras) ---
 if (!existsSync(venvPip)) fail('virtualenv pip missing at ' + venvPip);
 sh(venvPy, ['-m', 'pip', 'install', '--upgrade', 'pip', '-q']);
-sh(venvPy, ['-m', 'pip', 'install', '-e', '".[dev]"', '-q'], { cwd: backend });
+sh(venvPy, ['-m', 'pip', 'install', '-e', '.[dev]', '-q'], { cwd: backend });
 
 // --- 3. dashboard deps ---
 const dash = path.join(root, 'dashboard');
