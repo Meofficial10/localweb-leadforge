@@ -11,6 +11,8 @@ test("smoke: create campaign via wizard, run dry-run, view lead, approve draft",
 
   // 2) Create a campaign through the 4-step wizard
   await page.goto(BASE + "/campaigns", { waitUntil: "domcontentloaded" });
+  // wait for React hydration before interacting (dialogs need attached handlers)
+  await page.waitForTimeout(2500);
   const name = "Smoke Campaign " + (Date.now() % 100000);
   await page.getByRole("button", { name: /new campaign/i }).first().click();
   await expect(page.getByRole("dialog")).toBeVisible();

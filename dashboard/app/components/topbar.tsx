@@ -32,11 +32,11 @@ export function TopBar({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur">
+    <header className="sticky top-0 z-30 flex min-h-14 flex-wrap items-center gap-x-3 gap-y-2 border-b bg-card/95 px-4 py-2 backdrop-blur">
       <Button variant="ghost" size="icon" className="md:hidden" onClick={onOpenSidebar} aria-label="Open menu">
         <Menu className="h-5 w-5" />
       </Button>
-      <div className="w-44 flex-none">
+      <div className="w-40 flex-none sm:w-44">
         <Select value={campaignId} onValueChange={onCampaignChange}>
           <SelectTrigger aria-label="Campaign switcher">
             <SelectValue placeholder="All campaigns" />

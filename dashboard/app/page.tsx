@@ -113,7 +113,7 @@ export default function OverviewPage() {
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <Card>
+            <Card className="min-w-0">
               <CardHeader>
                 <CardTitle className="text-sm inline-flex items-center gap-2"><Gauge className="h-4 w-4" /> Usage vs daily caps</CardTitle>
               </CardHeader>
@@ -123,7 +123,7 @@ export default function OverviewPage() {
                 <p className="text-xs text-muted-foreground">Caps gate the sending pipeline; with the global dry-run nothing is ever delivered. Warm-up ramp: {caps?.data?.warm_up_schedule?.start ?? 5}/day growing to the cap over {caps?.data?.warm_up_schedule?.days ?? 21} days.</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="min-w-0">
               <CardHeader>
                 <CardTitle className="text-sm inline-flex items-center gap-2"><Activity className="h-4 w-4" /> Recent activity</CardTitle>
               </CardHeader>
