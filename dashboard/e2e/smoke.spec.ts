@@ -53,9 +53,10 @@ test("smoke: create campaign via wizard, run dry-run, view lead, approve draft",
 
   // 5) Approve the seeded draft in the Outreach queue
   await page.goto(BASE + "/outreach", { waitUntil: "domcontentloaded" });
+  // wait for the queue query to resolve (its data arrives after hydration)
+  await page.waitForTimeout(1500);
   const approve = page.getByRole("button", { name: /approve/i }).first();
-  const count = await approve.count();
-  expect(count).toBeGreaterThan(0); // seed script produces a real draft
+  await expect(approve).toBeVisible({ timeout: 20000 }); // seed produces a real draft
   await approve.click();
   await expect(page.getByRole("button", { name: /approve/i }).first()).toHaveCount(0, { timeout: 20000 })
     .catch(async () => {
