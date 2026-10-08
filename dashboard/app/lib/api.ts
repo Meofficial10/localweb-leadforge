@@ -157,7 +157,15 @@ export const systemApi = {
   campaignModes: (campaignId?: string) =>
     get<{ effective: Record<string, string> }>("/system/campaign-modes", { campaign_id: campaignId || "" }),
   audit: (params?: Record<string, string>) => get<any[]>("/system/audit", params),
+  overview: () => get<SystemOverview>("/system/overview"),
 };
+
+export interface SystemOverview {
+  metrics: Metrics;
+  status: SystemStatus;
+  caps: AppSettings;
+  audit: any[];
+}
 
 // ---------- types ----------
 export interface Campaign {

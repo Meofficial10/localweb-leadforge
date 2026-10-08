@@ -71,21 +71,82 @@ def audit_log(
     limit: int = 100,
     action: str | None = None,
     lead_id: str | None = None,
+    page: int | None = None,
+    page_size: int = 25,
     db: Session = Depends(get_session),
 ):
+    """Audit log with filters and server-side pagination (M5).
+
+    Backwards-compatible: without `page` returns a flat list capped by
+    `limit` (legacy); with `page` returns a paginated envelope.
+    """
     q = db.query(AuditLog)
     if action:
         q = q.filter(AuditLog.action == action)
     if lead_id:
         q = q.filter(AuditLog.lead_id == lead_id)
-    rows = q.order_by(AuditLog.id.desc()).limit(min(limit, 500)).all()
+    if page is None:
+        rows = q.order_by(AuditLog.created_at.desc()).limit(min(limit, 500)).all()
+        out = []
+        for r in rows:
+            out.append({
+                "id": r.id, "action": r.action, "lead_id": r.lead_id,
+                "detail": r.detail, "created_at": str(r.created_at) if r.created_at else None,
+            })
+        return out
+    page = max(int(page), 1)
+    page_size = min(max(int(page_size), 1), 100)
+    total = q.count()
+    rows = q.order_by(AuditLog.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
     out = []
     for r in rows:
         out.append({
-            "id": r.id,
-            "action": r.action,
-            "lead_id": r.lead_id,
-            "detail": r.detail,
-            "created_at": str(r.created_at) if r.created_at else None,
+            "id": r.id, "action": r.action, "lead_id": r.lead_id,
+            "detail": r.detail, "created_at": str(r.created_at) if r.created_at else None,
+        })
+    return {"items": out, "total": total, "page": page, "page_size": page_size}
+
+
+
+# ---- M5: combined overview endpoint with a short TTL cache ----
+_overview_cache: dict = {"at": 0.0, "data": None}
+_CACHE_TTL_S = 5.0
+
+
+def _audit_rows(db: Session, limit: int, action: str | None, lead_id: str | None):
+    q = db.query(AuditLog)
+    if action:
+        q = q.filter(AuditLog.action == action)
+    if lead_id:
+        q = q.filter(AuditLog.lead_id == lead_id)
+    rows = q.order_by(AuditLog.created_at.desc()).limit(min(limit, 500)).all()
+    out = []
+    for r in rows:
+        out.append({
+            "id": r.id, "action": r.action, "lead_id": r.lead_id,
+            "detail": r.detail, "created_at": str(r.created_at) if r.created_at else None,
         })
     return out
+
+
+@router.get("/overview")
+def overview(db: Session = Depends(get_session)):
+    """One endpoint for the Overview page: metrics + status + caps + recent
+    audit, cached in-process for a few seconds so the page makes a single
+    round-trip instead of four (M5). The cache is keyed for a single-user
+    local console, so a tiny TTL keeps values fresh without DB churn."""
+    import time as _time
+    now = _time.time()
+    if _overview_cache["data"] is not None and (now - _overview_cache["at"]) < _CACHE_TTL_S:
+        return _overview_cache["data"]
+    metrics = overview_metrics(db)
+    stat = status(db)
+    try:
+        from app.api.routers.settings_routes import _all as _all_settings
+        caps = _all_settings(db)
+    except Exception:  # pragma: no cover - fallback below
+        caps = {}
+    data = {"metrics": metrics, "status": stat, "caps": caps, "audit": _audit_rows(db, 8, None, None)}
+    _overview_cache["at"] = now
+    _overview_cache["data"] = data
+    return data

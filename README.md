@@ -26,6 +26,25 @@ npm run reset          # python -m scripts.reset_db
 npm run reset -- --seed
 ```
 
+
+## Performance notes (M5)
+
+- **Use `npm run start` (or `next start`) for everyday use.** `next dev` compiles on
+  demand and is noticeably slower for page loads; the production build is pre-compiled.
+- **Overview loads in a single request.** `/system/overview` returns metrics, effective
+  mode, caps and recent audit together, cached in-process for ~5s.
+- **List endpoints are server-paginated + filterable** — `/leads`, `/messages`,
+  `/system/audit` support `page`/`page_size`, `status`, `channel`/`lead_id` filters
+  (leads also `campaign_id`, `category`, `search`, `sort`). The console never fetches
+  full tables client-side.
+- **Queries are cached with TanStack Query** (`staleTime`, no window-focus refetch);
+  the geo dataset for the campaign wizard is lazy-fetched per country once.
+- **Indexes** cover the hot paths: `leads.status`/`campaign_id`, `messages.lead_id`/
+  `status`, `jobs.stage`/`status`, `audit_log.created_at` (migration
+  `c52d1e9a0b11`).
+- **Run polling is bounded**: active Apify runs are polled only while `running`/
+  `queued`, on a 3–5s interval, and the poll stops once the run reaches a terminal
+  state (`done`/`failed`).
 **What `npm run dev` starts:**
 
 | Prefix | Process | URL |

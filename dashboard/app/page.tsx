@@ -1,19 +1,18 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Users, Mail, MousePointerClick, CheckCircle2, Phone, ShieldAlert, Loader2, Activity, Gauge } from "lucide-react";
 import { systemApi, settingsApi } from "@/app/lib/api";
 import { PageHeader } from "@/app/components/shared/page-header";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import dynamic from "next/dynamic";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Legend,
-} from "recharts";
+
+const ReadsPerDay = dynamic(() => import("@/app/components/overview-charts").then((m) => ({ default: m.LeadsPerDayChart })), { ssr: false, loading: () => <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">Loading chart…</div> });
+const FunnelChartDyn = dynamic(() => import("@/app/components/overview-charts").then((m) => ({ default: m.FunnelChart })), { ssr: false, loading: () => <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">Loading chart…</div> });
 
 function KpiCard({ icon, label, value, suffix, accent }: { icon: React.ReactNode; label: string; value: number | string; suffix?: string; accent?: string }) {
   return (
@@ -51,10 +50,17 @@ function CapBar({ label, used, cap, unit }: { label: string; used: number; cap?:
 
 
 export default function OverviewPage() {
-  const { data, isLoading, isError } = useQuery({ queryKey: ["metrics"], queryFn: systemApi.metrics });
-  const status = useQuery({ queryKey: ["system-status"], queryFn: systemApi.status });
-  const caps = useQuery({ queryKey: ["settings"], queryFn: settingsApi.get });
-  const { data: activity, isLoading: activityLoading } = useQuery({ queryKey: ["audit"], queryFn: () => systemApi.audit({ limit: "8" }) });
+  // M5: single combined endpoint (metrics + status + caps + recent audit) with a short TTL cache
+  const { data: overview, isLoading, isError } = useQuery({
+    queryKey: ["overview"],
+    queryFn: systemApi.overview,
+    staleTime: 5_000,
+  });
+  const data = overview?.metrics;
+  const status = { data: overview?.status };
+  const caps = { data: overview?.caps };
+  const activity = overview?.audit ?? [];
+  const activityLoading = isLoading;
   const k = data?.kpis;
   const dry = status.data?.force_dry_run !== false;
 
@@ -84,38 +90,16 @@ export default function OverviewPage() {
               <CardHeader>
                 <CardTitle className="text-sm">Leads discovered per day</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={260}>
-                  <AreaChart data={data?.leads_per_day || []} margin={{ top: 5, right: 10, left: -15, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="fillGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
-                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                    <Tooltip />
-                    <Area type="monotone" dataKey="count" name="Leads" stroke="var(--primary)" fill="url(#fillGradient)" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <CardContent className="p-0">
+                <ReadsPerDay data={data?.leads_per_day || []} />
               </CardContent>
             </Card>
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="text-sm">Funnel</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={funnelData(data?.funnel)} margin={{ top: 5, right: 10, left: -15, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="value" name="stage" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+              <CardContent className="p-0">
+                <FunnelChartDyn data={funnelData(data?.funnel)} />
               </CardContent>
             </Card>
           </div>
