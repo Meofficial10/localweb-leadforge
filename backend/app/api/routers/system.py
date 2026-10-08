@@ -108,6 +108,19 @@ def audit_log(
 
 
 
+
+@router.get("/demo-data")
+def get_demo_data(db: Session = Depends(get_session)):
+    from app.core.demo_data import demo_data_status
+    return demo_data_status(db)
+
+
+@router.post("/demo-data/clear")
+def clear_demo(db: Session = Depends(get_session)):
+    from app.core.demo_data import clear_demo_data
+    return {"cleared": clear_demo_data(db)}
+
+
 # ---- M5: combined overview endpoint with a short TTL cache ----
 _overview_cache: dict = {"at": 0.0, "data": None}
 _CACHE_TTL_S = 5.0

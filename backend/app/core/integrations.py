@@ -121,6 +121,7 @@ LLM_PROVIDERS = [
     ProviderDef("custom", "Custom (OpenAI-compatible)", needs_key=True,
                 key_secret_key="llm.custom.api_key", base_url_default="https://your-endpoint.example/v1",
                 base_url_editable=True, note="Any OpenAI-compatible /v1 endpoint."),
+    ProviderDef("mock", "Mock (demo)", note="Canned, random responses — NO real LLM. Demo only."),
 ]
 
 HOSTING_PROVIDERS = [
@@ -143,12 +144,15 @@ EMAIL_PROVIDERS = [
 ]
 
 VOICE_PROVIDERS = [
-    ProviderDef("mock", "Mock (dry-run)", note="Returns a canned transcript. Default."),
-    ProviderDef("vapi", "Vapi", needs_key=True, key_secret_key="voice.vapi.api_key"),
-    ProviderDef("retell", "Retell", needs_key=True, key_secret_key="voice.retell.api_key"),
-    ProviderDef("bland", "Bland AI", needs_key=True, key_secret_key="voice.bland.api_key"),
+    ProviderDef("vapi", "Vapi", needs_key=True, key_secret_key="voice.vapi.api_key",
+                base_url_default="https://api.vapi.ai"),
+    ProviderDef("retell", "Retell", needs_key=True, key_secret_key="voice.retell.api_key",
+                base_url_default="https://api.retellai.com"),
+    ProviderDef("bland", "Bland AI", needs_key=True, key_secret_key="voice.bland.api_key",
+                base_url_default="https://api.bland.ai"),
     ProviderDef("custom", "Custom (OpenAI-compatible)", needs_key=True, key_secret_key="voice.custom.api_key",
-                base_url_default="", base_url_editable=True),
+                base_url_default="https://your-voice-endpoint.example", base_url_editable=True),
+    ProviderDef("mock", "Mock (demo)", note="Returns a canned transcript. Demo only — NOT a real service."),
 ]
 
 DNC_PROVIDERS = [
@@ -170,6 +174,8 @@ INTEGRATIONS: list[IntegrationDef] = [
                        FieldDef("timeout_sec", "Request timeout (s)", type="number", default=60),
                        FieldDef("fallback_provider", "Fallback provider", type="provider",
                                 help="Used if the primary provider fails."),
+                       FieldDef("headers", "Extra headers (JSON, optional)", type="textarea",
+                                help="Custom headers for OpenAI-compatible providers, e.g. {\"X-Org\": \"acme\"}. Only used by Custom."),
                    ]),
     IntegrationDef("places", "Google Places", "source", required=False,
                    description="Official Places TextSearch + Details API (needs a key).",
@@ -368,29 +374,6 @@ def save_config(db: Session, integ_id: str, payload: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def _record_test(db: Session, integ_id: str, result: dict) -> dict:
-    result["at"] = _now()
-    set_setting(db, f"integration.{integ_id}.last_test", result)
-    # refresh last_verified on the secret too (if an api key was used)
-    prov = provider_for(db, CATALOG[integ_id])
-    if prov is not None and prov.needs_key:
-        try:
-            mod = CATALOG[integ_id]
-            row = db.query(__import__("app.models.integration_secret", fromlist=["IntegrationSecret"]).IntegrationSecret).filter(
-                __import__("app.models.integration_secret", fromlist=["IntegrationSecret"]).IntegrationSecret.key == prov.key_secret_key).first()
-            if row is not None:
-                row.last_verified_at = datetime.now(timezone.utc)
-                db.commit()
-        except Exception:  # noqa: BLE001
-            pass
-    return result
-
-
-
-# ---------------------------------------------------------------------------
-# Test connections
-# ---------------------------------------------------------------------------
-
-def _record_test(db: Session, integ_id: str, result: dict) -> dict:
     now = _now()
     result["at"] = now
     set_setting(db, f"integration.{integ_id}.last_test", result)
@@ -412,179 +395,358 @@ def _probe(db: Session, integ_id: str, url: str, ok_msg: str, err_msg: str = "")
                                             "detail": str(exc), "fix_hint": "Verify the endpoint URL is reachable."})
 
 
-def _openai_chat_test(db, base, key, model) -> dict:
-    if not key:
-        return _record_test(db, "llm", {"ok": False, "message": "No API key configured",
-                                         "fix_hint": "Enter the provider API key in Configure."})
-    if not model:
-        return _record_test(db, "llm", {"ok": False, "message": "Model not set",
-                                         "fix_hint": "Pick a model or type a custom model name."})
-    t0 = time.perf_counter()
+TEST_TIMEOUT = 10.0  # seconds for every real connection probe
+
+
+def _effective(db: Session, integ: IntegrationDef, values) -> dict:
+    """Resolve the config actually in use, overlaying transient form values.
+    `values` holds what the user currently typed (not yet saved). It never
+    persists: testing unsaved state uses it; saved status comes only from storage.
+    """
+    v = values or {}
+    prov = provider_for(db, integ)
+    if v.get("provider") and any(p.id == v["provider"] for p in integ.providers):
+        prov = next((p for p in integ.providers if p.id == v["provider"]), prov)
+    cfgv = cfg(db, integ)
+    base = v.get("base_url") or cfgv.get("base_url") or prov.base_url_default or ""
+    key = v.get("api_key") or (get_secret(db, prov.key_secret_key) if prov.needs_key else None) or ""
+    model = v.get("model") or cfgv.get("model") or (prov.static_models[0] if prov.static_models else "")
+    smtp_host = v.get("smtp_host") or cfgv.get("smtp_host") or ""
+    smtp_port = v.get("smtp_port") if v.get("smtp_port") is not None else cfgv.get("smtp_port") or 587
+    smtp_user = v.get("smtp_username") or cfgv.get("smtp_username") or ""
+    smtp_pass = v.get("smtp_password") or get_secret(db, prov.key_secret_key) or ""
+    headers = v.get("headers") or cfgv.get("headers") or {}
+    if isinstance(headers, str):
+        import json
+        try:
+            headers = json.loads(headers) if headers.strip() else {}
+        except Exception:
+            headers = {}
+    return {"prov": prov, "base": base.rstrip("/"), "key": key, "model": model,
+            "smtp": {"host": smtp_host, "port": smtp_port, "user": smtp_user, "pass": smtp_pass},
+            "headers": headers}
+
+
+def _llm_headers(key: str, headers) -> dict:
+    h = {"Content-Type": "application/json"}
+    for k, v in (headers or {}).items():
+        h[str(k)] = str(v)
+    if key:
+        h["Authorization"] = "Bearer " + key
+    return h
+
+def _test_llm(db, eff):
+    base, key, model = eff["base"], eff["key"], eff["model"]
+    prov = eff["prov"]
     try:
-        r = httpx.post(base.rstrip('/') + "/chat/completions",
-                       headers={"Content-Type": "application/json", "Authorization": "Bearer " + key},
-                       json={"model": model, "messages": [{"role": "user", "content": "Reply with OK."}],
-                             "max_tokens": 5}, timeout=30)
+        if prov.id == "ollama":
+            t0 = time.perf_counter()
+            r = httpx.get(base + "/api/tags", timeout=TEST_TIMEOUT)
+            latency = int((time.perf_counter() - t0) * 1000)
+            if r.status_code != 200:
+                return _record_test(db, "llm", {"ok": False,
+                                                 "message": "Ollama not running at " + (base or "http://localhost:11434"),
+                                                 "detail": "GET /api/tags -> HTTP " + str(r.status_code),
+                                                 "fix_hint": "start it with: ollama serve"})
+            names = [m.get("name") or m.get("model") for m in r.json().get("models", [])]
+            picked = model or (names[0] if names else "")
+            return _record_test(db, "llm", {"ok": True, "message": "Ollama connected",
+                                             "detail": "Ollama " + str(len(names)) + " models; " + (picked or "none selected") + ". api/tags in " + str(latency) + " ms.",
+                                             "latency_ms": latency})
+        if prov.id == "anthropic":
+            t0 = time.perf_counter()
+            r = httpx.post(base + "/messages",
+                           headers={"x-api-key": key, "anthropic-version": "2023-06-01",
+                                    "Content-Type": "application/json"},
+                           json={"model": model or "claude-3-haiku-20240307", "max_tokens": 8,
+                                 "messages": [{"role": "user", "content": "hi"}]},
+                           timeout=TEST_TIMEOUT)
+            latency = int((time.perf_counter() - t0) * 1000)
+            if r.status_code in (200, 201):
+                return _record_test(db, "llm", {"ok": True, "message": "Anthropic connected",
+                                                 "detail": "API key accepted; /messages in " + str(latency) + " ms.",
+                                                 "latency_ms": latency})
+            if r.status_code in (401, 403):
+                return _record_test(db, "llm", {"ok": False, "message": "Anthropic rejected the API key",
+                                                 "fix_hint": "x-api-key is invalid or revoked."})
+            return _record_test(db, "llm", {"ok": False, "message": "Anthropic error (HTTP " + str(r.status_code) + ")",
+                                             "detail": r.text[:120], "fix_hint": "Check the model name and that the endpoint is reachable."})
+        # OpenAI-compatible providers: list /models = cheap token check.
+        t0 = time.perf_counter()
+        r = httpx.get(base + "/models", headers=_llm_headers(key, eff["headers"]), timeout=TEST_TIMEOUT)
         latency = int((time.perf_counter() - t0) * 1000)
         if r.status_code == 200:
-            answered = (((r.json().get("choices") or [{}])[0].get("message") or {}).get("content") or "").strip()
-            return _record_test(db, "llm", {"ok": True, "message": "LLM connected",
-                                             "detail": f"Model {model} answered in {latency} ms: '{answered[:20]}'",
+            data = r.json().get("data") or []
+            ids = [m.get("id") or m.get("name") for m in data][:4]
+            return _record_test(db, "llm", {"ok": True, "message": prov.label + " connected",
+                                             "detail": "Key accepted; " + str(len(data)) + " models" + (" (" + ", ".join(x for x in ids if x) + ")" if ids else "") + ". /models in " + str(latency) + " ms.",
                                              "latency_ms": latency})
-        return _record_test(db, "llm", {"ok": False, "message": f"Provider returned HTTP {r.status_code}: {r.text[:120]}",
-                                         "fix_hint": "Check the API key and model name."})
+        if r.status_code in (401, 403):
+            return _record_test(db, "llm", {"ok": False, "message": prov.label + " rejected the API key",
+                                             "fix_hint": "Enter a valid " + prov.label + " API key."})
+        return _record_test(db, "llm", {"ok": False, "message": prov.label + " error (HTTP " + str(r.status_code) + ")",
+                                         "detail": r.text[:120], "fix_hint": "Check the Base URL and key."})
     except Exception as exc:
-        return _record_test(db, "llm", {"ok": False, "message": "Request failed: " + str(exc),
-                                         "fix_hint": "Check the Base URL and that the endpoint is reachable."})
+        if prov.id == "ollama":
+            return _record_test(db, "llm", {"ok": False,
+                                             "message": "Ollama not running at " + (base or "http://localhost:11434"),
+                                             "detail": "Could not reach GET " + (base or "http://localhost:11434") + "/api/tags (" + str(exc) + ")",
+                                             "fix_hint": "start it with: ollama serve"})
+        return _record_test(db, "llm", {"ok": False, "message": prov.label + " not reachable at " + (base or "the configured Base URL"),
+                                         "detail": str(exc),
+                                         "fix_hint": "Check the Base URL and that " + prov.label + " is reachable (firewall, network)."})
 
 
-def test_integration(db: Session, integ_id: str) -> dict:
-    import httpx as _httpx  # noqa
+def test_integration(db, integ_id, values=None):
+    """Real connection test. `values` are transient form overrides (optional)
+    so the user can test BEFORE saving; the result is stored with a timestamp."""
     integ = CATALOG.get(integ_id)
     if integ is None:
         return {"ok": False, "message": "unknown integration"}
-    prov = provider_for(db, integ)
+    eff = _effective(db, integ, values)
+    prov = eff["prov"]
     if prov is None:
         return _record_test(db, integ_id, {"ok": False, "message": "no provider configured"})
-
     if not cfg(db, integ).get("enabled", True):
         return _record_test(db, integ_id, {"ok": False, "message": "Integration is disabled"})
 
-    if prov.id in ("mock", "file", "local", "identity"):
-        return _record_test(db, integ_id, {"ok": True, "message": prov.label + " is always available",
-                                            "detail": prov.label + " — no network needed."})
+    # Explicit demo/mock/local sinks only ever report success as themselves.
+    if prov.id == "mock":
+        return _record_test(db, integ_id, {"ok": True, "message": prov.label + " ready",
+                                            "detail": "Mock, no real service - canned/demo output only."})
+    if prov.id == "file":
+        return _record_test(db, integ_id, {"ok": True, "message": "File sink ready",
+                                            "detail": "Dry-run outbox - writes .eml files. No real SMTP."})
+    if prov.id == "local":
+        return _record_test(db, integ_id, {"ok": True, "message": "Local file hosting ready",
+                                            "detail": "Writes demo sites to backend/data/demo_sites."})
     if prov.id == "none":
-        return _record_test(db, integ_id, {"ok": False, "message": "No DNC provider — voice stays fail-closed",
+        return _record_test(db, integ_id, {"ok": False, "message": "No DNC provider - voice stays fail-closed",
                                             "fix_hint": "Configure a DNC provider to enable voice calls."})
-
-    if integ_id == "identity":
+    if prov.id == "identity":
         return _record_test(db, integ_id, {"ok": True, "message": "Sender identity is set",
                                             "detail": "Identity fields saved."})
+
+    if not has_required_fields(db, integ) and not _transient_ok(db, integ, eff, prov):
+        missing = missing_fields(db, integ)
+        return _record_test(db, integ_id, {"ok": False, "message": "Not configured",
+                                            "detail": "Missing: " + (", ".join(missing) or "configuration"),
+                                            "fix_hint": "Enter the required fields, or test with current form values."})
+
     if integ_id == "llm":
-        return _test_llm(db, prov)
+        return _test_llm(db, eff)
     if integ_id == "places":
-        if not _is_key_set(db, prov.key_secret_key):
-            return _record_test(db, integ_id, {"ok": False, "message": "No Places API key configured",
-                                                "fix_hint": "Set a Google Places API key (free tier)."})
-        return _record_test(db, integ_id, {"ok": True, "message": "Google Places configured",
-                                            "detail": "Credential present — a live query runs during discovery."})
+        return _test_places(db, eff, prov)
     if integ_id == "osm":
-        base = cfg(db, integ).get("base_url") or prov.base_url_default or settings.overpass_base_url
-        url = base.rstrip('/')
+        base = eff["base"] or prov.base_url_default or settings.overpass_base_url
+        url = base.rstrip("/")
         if not url.endswith("/interpreter") and "/api/interpreter" not in url:
             url = url + "/api/interpreter"
         return _probe(db, integ_id, url, "Overpass endpoint reachable", "Overpass unreachable")
     if integ_id == "hosting":
-        if prov.id == "local":
-            return _record_test(db, integ_id, {"ok": True, "message": "Local file hosting always available"})
-        if not _is_key_set(db, prov.key_secret_key):
-            return _record_test(db, integ_id, {"ok": False, "message": "No hosting token configured",
-                                                "fix_hint": "Enter a " + prov.label + " API token."})
-        base = cfg(db, integ).get("base_url") or prov.base_url_default
-        key = get_secret(db, prov.key_secret_key) or ""
-        try:
-            if prov.id == "cloudflare_pages":
-                r = httpx.get(base.rstrip('/') + "/user/tokens/verify",
-                              headers={"Authorization": "Bearer " + key}, timeout=15)
-                ok = r.status_code == 200
-                return _record_test(db, integ_id, {"ok": ok,
-                                                    "message": "Cloudflare token valid" if ok else f"Cloudflare rejected token (HTTP {r.status_code})",
-                                                    "fix_hint": "" if ok else "Check the token has Pages edit scope."})
-            if prov.id == "netlify":
-                r = httpx.get(base.rstrip('/') + "/user",
-                              headers={"Authorization": "Bearer " + key}, timeout=15)
-                ok = r.status_code == 200
-                return _record_test(db, integ_id, {"ok": ok,
-                                                    "message": "Netlify token valid" if ok else f"Netlify rejected token (HTTP {r.status_code})",
-                                                    "fix_hint": "" if ok else "Check the token and site membership."})
-        except Exception as exc:
-            return _record_test(db, integ_id, {"ok": False, "message": "Error: " + str(exc),
-                                                "fix_hint": "Is the hosting API reachable?"})
+        return _test_hosting(db, eff, prov)
     if integ_id == "email":
-        if prov.id == "file":
-            return _record_test(db, integ_id, {"ok": True, "message": "File sender always available",
-                                                "detail": "Dry-run outbox — writes .eml files."})
-        host = cfg(db, integ).get("smtp_host") or ""
-        if prov.id == "smtp":
-            if not host:
-                return _record_test(db, integ_id, {"ok": False, "message": "SMTP host missing",
-                                                    "fix_hint": "Set SMTP host/port in the Configure drawer."})
-            has_secret = (_is_key_set(db, "email.smtp.password") or False)
-            return _record_test(db, integ_id, {"ok": True, "message": "SMTP configured",
-                                                "detail": f"SMTP {host} — credentials {'present' if has_secret else 'optional (open relay)'}"})
-        if prov.id in ("brevo", "resend"):
-            if not _is_key_set(db, prov.key_secret_key):
-                return _record_test(db, integ_id, {"ok": False, "message": "No " + prov.label + " API key",
-                                                    "fix_hint": "Enter the " + prov.label + " API key."})
-            return _record_test(db, integ_id, {"ok": True, "message": prov.label + " configured",
-                                                "detail": prov.label + " key present — dry-run sends stop before SMTP."})
+        return _test_email(db, eff, prov)
     if integ_id == "voice":
-        if not _is_key_set(db, prov.key_secret_key):
-            return _record_test(db, integ_id, {"ok": False, "message": "No " + prov.label + " API key",
-                                                "fix_hint": "Set the voice API key."})
-        return _record_test(db, integ_id, {"ok": True, "message": prov.label + " configured",
-                                            "detail": "Voice stays in dry-run — first live call is compliance-gated."})
+        return _test_voice(db, eff, prov)
     if integ_id == "dnc":
-        if not _is_key_set(db, prov.key_secret_key):
-            return _record_test(db, integ_id, {"ok": False, "message": "DNC registry key missing",
-                                                "fix_hint": "Set the DNC registry API key."})
-        return _record_test(db, integ_id, {"ok": True, "message": "DNC provider configured"})
+        return _test_dnc(db, eff, prov)
     if integ_id == "apify":
         from app.core.apify import validate_token
-        return validate_token(db, get_secret(db, prov.key_secret_key) or "")
+        return validate_token(db, eff["key"])
     return _record_test(db, integ_id, {"ok": True, "message": "Connection OK"})
 
 
-def _test_llm(db: Session, prov: ProviderDef) -> dict:
-    integ = CATALOG["llm"]
-    c = cfg(db, integ)
-    base = c.get("base_url") or prov.base_url_default
-    key = get_secret(db, prov.key_secret_key) if prov.needs_key else None
-    model = c.get("model") or (prov.static_models[0] if prov.static_models else "")
+def _transient_ok(db, integ, eff, prov):
+    """True when unsaved form values satisfy the required fields."""
+    if prov.id in ("none", "mock", "local", "file", "identity"):
+        return True
+    if prov.needs_key and eff["key"]:
+        return True
+    if prov.base_url_editable and eff["base"]:
+        return True
+    if integ.id == "email" and prov.id == "smtp" and eff["smtp"]["host"]:
+        return True
+    return False
 
-    if prov.id == "ollama":
+def _test_places(db, eff, prov):
+    key = eff["key"]
+    if not key:
+        return _record_test(db, "places", {"ok": False, "message": "No Places API key",
+                                            "fix_hint": "Enter a Google Places API key."})
+    try:
         t0 = time.perf_counter()
-        try:
-            r = httpx.get(base.rstrip('/') + "/api/tags", timeout=30)
-            latency = int((time.perf_counter() - t0) * 1000)
-            if r.status_code != 200:
-                return _record_test(db, "llm", {"ok": False, "message": f"Ollama unreachable (HTTP {r.status_code})",
-                                                 "fix_hint": "Start Ollama (ollama serve) and set the Base URL."})
-            names = [m.get("name") or m.get("model") for m in r.json().get("models", [])]
-            model = model or (names[0] if names else "")
-            return _record_test(db, "llm", {"ok": True, "message": "Ollama connected",
-                                             "detail": f"Ollama — {len(names)} models; {model or 'no model'} ready.",
-                                             "latency_ms": latency})
-        except Exception as exc:
-            return _record_test(db, "llm", {"ok": False, "message": "Ollama unreachable: " + str(exc),
-                                             "fix_hint": "Start Ollama and confirm the Base URL (default http://localhost:11434)."})
-    return _openai_chat_test(db, base, key, model)
+        r = httpx.get("https://maps.googleapis.com/maps/api/place/findplacefromtext/json",
+                      params={"input": "Singapore", "inputtype": "textquery",
+                              "fields": "name,geometry", "key": key}, timeout=TEST_TIMEOUT)
+        latency = int((time.perf_counter() - t0) * 1000)
+        body = r.json()
+        status = body.get("status")
+        if status == "OK":
+            cands = body.get("candidates") or []
+            first = cands[0].get("name") if cands else None
+            label = (" (e.g. " + first + ")") if first else ""
+            return _record_test(db, "places", {"ok": True, "message": "Google Places connected",
+                                                "detail": "Key accepted; query returned " + str(len(cands)) + " result(s)" + label + " in " + str(latency) + " ms.",
+                                                "latency_ms": latency})
+        if status == "REQUEST_DENIED":
+            return _record_test(db, "places", {"ok": False, "message": "Google Places rejected the key (REQUEST_DENIED)",
+                                                "fix_hint": "Key invalid or not enabled for Places API."})
+        return _record_test(db, "places", {"ok": False, "message": "Places API error: " + str(status),
+                                            "fix_hint": "Check the key and that Places API is enabled."})
+    except Exception as exc:
+        return _record_test(db, "places", {"ok": False, "message": "Places API unreachable: " + str(exc),
+                                            "fix_hint": "Check network access to google."})
+def _test_hosting(db, eff, prov):
+    key = eff["key"]
+    if not key:
+        return _record_test(db, "hosting", {"ok": False, "message": "No " + prov.label + " token",
+                                            "fix_hint": "Enter the token first."})
+    base = eff["base"] or prov.base_url_default
+    try:
+        if (prov.id == "cloudflare_pages"):
+            r = httpx.get(base.rstrip("/") + "/user/tokens/verify",
+                          headers={"Authorization": "Bearer " + key}, timeout=TEST_TIMEOUT)
+            ok = r.status_code == 200 and (r.json().get("result") or {}).get("status") == "active"
+            return _record_test(db, "hosting", {"ok": ok,
+                                                 "message": "Cloudflare token valid" if ok else "Cloudflare rejected token",
+                                                 "fix_hint": "" if ok else "Token invalid or lacks Pages edit scope."})
+        if prov.id == "netlify":
+            r = httpx.get(base.rstrip("/") + "/user",
+                          headers={"Authorization": "Bearer " + key}, timeout=TEST_TIMEOUT)
+            ok = r.status_code == 200
+            return _record_test(db, "hosting", {"ok": ok,
+                                                 "message": "Netlify token valid" if ok else "Netlify rejected token",
+                                                 "fix_hint": "" if ok else "Token invalid or missing sites scope."})
+        return _record_test(db, "hosting", {"ok": False, "message": "Unknown hosting provider"})
+    except Exception as exc:
+        return _record_test(db, "hosting", {"ok": False, "message": "Error: " + str(exc),
+                                             "fix_hint": "Is the hosting API reachable?"})
+def _test_email(db, eff, prov):
+    if prov.id == "smtp":
+        return _test_smtp(db, eff)
+    key = eff["key"]
+    if not key:
+        return _record_test(db, "email", {"ok": False, "message": "No " + prov.label + " API key",
+                                            "fix_hint": "Enter the key first."})
+    try:
+        t0 = time.perf_counter()
+        if prov.id == "brevo":
+            r = httpx.get("https://api.brevo.com/v3/account", headers={"api-key": key}, timeout=TEST_TIMEOUT)
+            ok = r.status_code == 200
+            return _record_test(db, "email", {"ok": ok, "message": "Brevo key valid" if ok else "Brevo rejected key",
+                                               "detail": "Account API in " + str(int((time.perf_counter() - t0) * 1000)) + " ms." if ok else "",
+                                               "fix_hint": "" if ok else "Key invalid or lacks mail-send scope."})
+        if prov.id == "resend":
+            r = httpx.get("https://api.resend.com/domains", headers={"Authorization": "Bearer " + key}, timeout=TEST_TIMEOUT)
+            ok = r.status_code == 200
+            return _record_test(db, "email", {"ok": ok, "message": "Resend key valid" if ok else "Resend rejected key",
+                                               "detail": "Domains endpoint in " + str(int((time.perf_counter() - t0) * 1000)) + " ms." if ok else "",
+                                               "fix_hint": "" if ok else "Key invalid."})
+        return _record_test(db, "email", {"ok": False, "message": "Unknown email provider"})
+    except Exception as exc:
+        return _record_test(db, "email", {"ok": False, "message": "Error: " + str(exc),
+                                           "fix_hint": "Is the provider API reachable?"})
+def _test_smtp(db, eff):
+    smtp = eff["smtp"]
+    host = smtp["host"]
+    if not host:
+        return _record_test(db, "email", {"ok": False, "message": "SMTP host missing",
+                                            "fix_hint": "Enter SMTP host/port in the drawer."})
+    import smtplib
+    t0 = time.perf_counter()
+    conn = None
+    try:
+        conn = smtplib.SMTP(host, int(smtp["port"] or 587), timeout=TEST_TIMEOUT)
+        conn.ehlo()
+        if conn.has_extn("starttls"):
+            conn.starttls()
+            conn.ehlo()
+        if smtp["pass"]:
+            conn.login(smtp["user"], smtp["pass"])
+        latency = int((time.perf_counter() - t0) * 1000)
+        return _record_test(db, "email", {"ok": True, "message": "SMTP login succeeded",
+                                            "detail": host + ":" + str(smtp["port"]) + " authenticated" + (" as " + smtp["user"] if smtp["user"] else "") + " in " + str(latency) + " ms.",
+                                            "latency_ms": latency})
+    except smtplib.SMTPAuthenticationError:
+        return _record_test(db, "email", {"ok": False, "message": "SMTP login failed - wrong credentials",
+                                            "fix_hint": "Check SMTP username/password with your provider."})
+    except Exception as exc:
+        return _record_test(db, "email", {"ok": False, "message": "SMTP connection failed: " + str(exc),
+                                            "fix_hint": "Check host, port and TLS settings."})
+    finally:
+        if conn is not None:
+            try: conn.quit()
+            except Exception: pass
+def _test_voice(db, eff, prov):
+    key = eff["key"]
+    if not key:
+        return _record_test(db, "voice", {"ok": False, "message": "No " + prov.label + " API key",
+                                            "fix_hint": "Enter the key first."})
+    base = eff["base"] or prov.base_url_default
+    try:
+        t0 = time.perf_counter()
+        r = httpx.get(base.rstrip("/") + "/", headers={"Authorization": "Bearer " + key}, timeout=TEST_TIMEOUT)
+        latency = int((time.perf_counter() - t0) * 1000)
+        if r.status_code == 200:
+            return _record_test(db, "voice", {"ok": True, "message": prov.label + " connected",
+                                               "detail": "API key accepted in " + str(latency) + " ms.", "latency_ms": latency})
+        if r.status_code in (401, 403):
+            return _record_test(db, "voice", {"ok": False, "message": prov.label + " rejected the API key",
+                                               "fix_hint": "Key invalid or revoked for " + prov.label + "."})
+        return _record_test(db, "voice", {"ok": False, "message": prov.label + " error (HTTP " + str(r.status_code) + ")",
+                                           "fix_hint": "Check key and base URL."})
+    except Exception as exc:
+        return _record_test(db, "voice", {"ok": False, "message": "Error: " + str(exc),
+                                           "fix_hint": "Is " + (base or "the voice API") + " reachable?"})
+def _test_dnc(db, eff, prov):
+    key = eff["key"]
+    if not key:
+        return _record_test(db, "dnc", {"ok": False, "message": "DNC registry key missing",
+                                          "fix_hint": "Set the DNC registry API key."})
+    base = eff["base"] or prov.base_url_default
+    try:
+        t0 = time.perf_counter()
+        r = httpx.get(base.rstrip("/") + "/health", headers={"Authorization": "Bearer " + key}, timeout=TEST_TIMEOUT)
+        latency = int((time.perf_counter() - t0) * 1000)
+        if r.status_code in (200, 204):
+            return _record_test(db, "dnc", {"ok": True, "message": "DNC registry reachable",
+                                             "detail": "Health check in " + str(latency) + " ms.", "latency_ms": latency})
+        if r.status_code in (401, 403):
+            return _record_test(db, "dnc", {"ok": False, "message": "DNC registry rejected the key",
+                                             "fix_hint": "Key invalid or lacks permission."})
+        return _record_test(db, "dnc", {"ok": False, "message": "DNC registry error (HTTP " + str(r.status_code) + ")",
+                                         "fix_hint": "Check the Base URL and key."})
+    except Exception as exc:
+        return _record_test(db, "dnc", {"ok": False, "message": "Error: " + str(exc),
+                                         "fix_hint": "Is the DNC registry reachable?"})
+
 
 
 def llm_model_list(db: Session, provider: str, base_url: str | None = None, api_key: str | None = None) -> list[str]:
-    """Fetch the provider's model list (empty means 'unable to fetch')."""
+    """Fetch the provider model list (empty means unable to fetch)."""
     prov = next((p for p in LLM_PROVIDERS if p.id == provider), None)
-    if prov is None:
+    if prov is None or prov.id == "mock":
         return []
-    base = (base_url or prov.base_url_default or "").rstrip('/')
+    base = (base_url or prov.base_url_default or "").rstrip("/")
     if not base:
         return []
     try:
         if prov.id == "ollama":
-            resp = httpx.get(base + "/api/tags", timeout=20)
+            resp = httpx.get(base + "/api/tags", timeout=TEST_TIMEOUT)
             resp.raise_for_status()
             return [m.get("name") or m.get("model") for m in resp.json().get("models", [])]
         key = api_key or get_secret(db, prov.key_secret_key)
         headers = {"Authorization": "Bearer " + key} if key else {}
-        resp = httpx.get(base + "/models", headers=headers, timeout=20)
+        resp = httpx.get(base + "/models", headers=headers, timeout=TEST_TIMEOUT)
         resp.raise_for_status()
         return [m.get("id") or m.get("name") for m in resp.json().get("data", [])]
-    except Exception:  # noqa: BLE001
+    except Exception:
         return []
 
 
 def health_summary(db: Session) -> dict:
-    """X of Y required integrations working + checklist of what's still needed."""
+    """X of Y required integrations working + checklist of what is still needed."""
     rows = []
     working = 0
     for iid in REQUIRED_IDS:

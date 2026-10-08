@@ -52,6 +52,7 @@ def _serialize_draft(db: Session, m: Message) -> dict:
         'sequence_step': m.sequence_step,
         'campaign_id': lead.campaign_id if lead else None,
         'compliance': {'ok': check.ok, 'reasons': check.reasons},
+        'is_demo': bool(lead and lead.source_place_id.startswith("seed-")),
         'created_at': str(m.created_at) if getattr(m, 'created_at', None) else None,
     }
 

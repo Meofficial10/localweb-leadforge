@@ -25,6 +25,7 @@ def serialize_lead(lead: Lead) -> dict:
         "review_count": lead.review_count,
         "contact_type": lead.contact_type,
         "status": lead.status,
+        "is_demo": lead.source_place_id.startswith("seed-"),
         "created_at": str(lead.created_at),
         "contacts": [{"kind": c.kind, "value": c.value, "source_url": c.source_url} for c in lead.contacts],
         "demo": [{"preview_url": d.preview_url, "template": d.template, "deploy_status": d.deploy_status}

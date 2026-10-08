@@ -126,10 +126,19 @@ def test_integrations_secrets_masked_and_test(client):
     assert cf.status_code == 200
     ecard = next(c for c in client.get("/integrations").json()["cards"] if c["id"] == "email")
     assert ecard["secret"] is not None and ecard["secret"]["is_set"] is True
-    # test connection (no network needed for credential checks)
+    # test connection: truthful — a fake key must NEVER report success
     tres = client.post("/integrations/email/test")
     assert tres.status_code == 200
-    assert tres.json()["ok"] is True
+    assert tres.json()["ok"] is False
+    assert "fix_hint" in tres.json() or tres.json()["message"]
+    # a provider that cannot lie: switch to the local file sink and expect a truthful ok
+    cf2 = client.post("/integrations/email/configure", json={"values": {"provider": "file"}})
+    assert cf2.status_code == 200
+    fcard = next(c for c in client.get("/integrations").json()["cards"] if c["id"] == "email")
+    fres = client.post("/integrations/email/test")
+    assert fres.status_code == 200
+    assert fres.json()["ok"] is True
+    assert "Mock" not in (fres.json()["message"] or "") and "real" not in (fres.json()["message"] or "").lower()
     # clear
     clr = client.delete("/integrations/secrets/email.brevo.api_key")
     assert clr.json()["cleared"] is True

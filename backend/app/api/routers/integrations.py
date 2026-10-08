@@ -23,6 +23,10 @@ class ConfigureRequest(BaseModel):
     values: dict
 
 
+class TestRequest(BaseModel):
+    values: dict | None = None
+
+
 def _card(db: Session, integ: _ig.IntegrationDef) -> dict:
     c = _ig.cfg(db, integ)
     st = _ig.status(db, integ)
@@ -39,6 +43,7 @@ def _card(db: Session, integ: _ig.IntegrationDef) -> dict:
         "config": c,
         "status": st,
         "secret": secret,
+        "is_demo": bool(prov is not None and prov.id in ("mock",)),
     }
 
 
@@ -71,10 +76,12 @@ def configure_integration(integration_id: str, payload: ConfigureRequest,
 
 
 @router.post("/{integration_id}/test")
-def test_connection(integration_id: str, db: Session = Depends(get_session)):
+def test_connection(integration_id: str, payload: TestRequest | None = None,
+                    db: Session = Depends(get_session)):
     if integration_id not in _ig.CATALOG:
         raise HTTPException(404, "unknown integration")
-    return _ig.test_integration(db, integration_id)
+    values = payload.values if payload is not None else None
+    return _ig.test_integration(db, integration_id, values)
 
 
 @router.get("/{integration_id}/models")

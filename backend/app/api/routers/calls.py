@@ -26,6 +26,7 @@ def _serialize(db: Session, c: Call) -> dict:
         'transcript': c.transcript,
         'recording_url': c.recording_url,
         'recording_consent': c.recording_consent,
+        'is_demo': bool(lead and lead.source_place_id.startswith("seed-")),
     }
 
 
