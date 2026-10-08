@@ -9,6 +9,7 @@ import { queueApi, type Draft } from "@/app/lib/api";
 import { PageHeader } from "@/app/components/shared/page-header";
 import { EmptyState } from "@/app/components/shared/empty-state";
 import { StatusChip } from "@/app/components/shared/status-badge";
+import { DemoDataBadge } from "@/app/components/shared/demo-data-badge";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
@@ -83,6 +84,7 @@ function DraftRow({ draft, onEdit }: { draft: Draft; onEdit: (d: Draft) => void 
       <CardContent className="space-y-2 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold">{draft.lead_name}</span>
+          {draft.is_demo ? <DemoDataBadge /> : null}
           {draft.lead_category && <Badge variant="secondary">{draft.lead_category}</Badge>}
           <Badge variant="outline">step {draft.sequence_step}</Badge>
           <div className="ml-auto flex items-center gap-2">

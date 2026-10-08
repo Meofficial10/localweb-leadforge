@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Phone, Loader2 } from "lucide-react";
 import { callsApi, type CallItem } from "@/app/lib/api";
 import { PageHeader } from "@/app/components/shared/page-header";
+import { DemoDataBadge } from "@/app/components/shared/demo-data-badge";
 import { EmptyState } from "@/app/components/shared/empty-state";
 import { Badge } from "@/app/components/ui/badge";
 import { Card, CardContent } from "@/app/components/ui/card";
@@ -37,6 +38,7 @@ export default function CallsPage() {
             <Card key={call.id}>
               <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4">
                 <button className="font-semibold text-left hover:underline" onClick={() => setSelected(call)}>{call.lead_name}</button>
+                {call.is_demo ? <DemoDataBadge /> : null}
                 <Badge variant={call.ai_disclosed ? "success" : "warn"}>{call.ai_disclosed ? "AI-disclosed" : "disclosure pending"}</Badge>
                 {call.outcome ? <Badge variant="secondary">{call.outcome}</Badge> : null}
                 {call.duration_sec != null && <span className="text-xs text-muted-foreground">{call.duration_sec}s</span>}

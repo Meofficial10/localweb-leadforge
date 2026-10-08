@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save, Loader2, Settings as SettingsIcon, Mail, ShieldCheck, Wallet, Megaphone } from "lucide-react";
 import { settingsApi, type AppSettings } from "@/app/lib/api";
 import { PageHeader } from "@/app/components/shared/page-header";
+import { DemoDataBanner } from "@/app/components/demo-data-banner";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -94,6 +95,7 @@ export default function SettingsPage() {
           </Button>
         }
       />
+      <DemoDataBanner />
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-6">
           <SectionCard icon={<Mail className="h-4 w-4" />} title="Daily caps & send window">

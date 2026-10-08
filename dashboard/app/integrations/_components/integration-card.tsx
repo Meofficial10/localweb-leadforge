@@ -11,6 +11,7 @@ import { integrationsApi, type IntegrationCard as CardT, type IntegrationStatus 
 import { asError } from "@/app/lib/utils";
 import { KindIcon } from "./kind-icons";
 import { StatusPill } from "./status-pill";
+import { DemoDataBadge } from "@/app/components/shared/demo-data-badge";
 
 export function IntegrationCardView({ card, onConfigure }: { card: CardT; onConfigure: (c: CardT) => void }) {
   const qc = useQueryClient();

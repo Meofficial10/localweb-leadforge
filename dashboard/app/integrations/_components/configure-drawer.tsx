@@ -32,6 +32,7 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
   const [fetchingModels, setFetchingModels] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
+  const [testResult, setTestResult] = React.useState<{ ok: boolean; message: string; detail?: string; fix_hint?: string; at?: string } | null>(null);
 
   React.useEffect(() => {
     if (!open || !card) return;
@@ -44,6 +45,7 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
       String((cfg[f.key] !== undefined && cfg[f.key] !== null) ? cfg[f.key] : (f.default ?? "")),
     ])));
     setModels([]);
+    setTestResult(null);
   }, [open, card]);
 
   if (!card) return null;
@@ -66,14 +68,34 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
     }
   };
 
+  const collectValues = (): Record<string, unknown> => {
+    const v: Record<string, unknown> = {};
+    if (provider) v.provider = provider.id;
+    if (provider?.base_url_editable) v.base_url = baseUrl.trim();
+    if (needsKey) v.api_key = apiKey.trim();
+    Object.entries(fieldVals).forEach(([k, val]) => {
+      if (val !== "" && val !== undefined) v[k] = (!isNaN(Number(val)) && val.trim() !== "") ? Number(val) : val;
+    });
+    return v;
+  };
+
   const testConnection = async () => {
     if (!card) return;
     setTesting(true);
+    setTestResult(null);
     try {
-      const res = await integrationsApi.test(card.id);
+      const res = await integrationsApi.test(card.id, collectValues());
+      setTestResult({
+        ok: res.ok,
+        message: res.message || (res.ok ? "Connection OK" : "Connection failed"),
+        detail: res.detail,
+        fix_hint: (res as any).fix_hint,
+        at: res.at,
+      });
       (res.ok ? toast.success : toast.error)(res.message || (res.ok ? "Connection OK" : "Connection failed"));
       qc.invalidateQueries({ queryKey: ["integrations"] });
     } catch (e) {
+      setTestResult({ ok: false, message: asError(e) });
       toast.error(asError(e));
     } finally {
       setTesting(false);
@@ -189,6 +211,7 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
 
           {card.fields.map((f) => {
             if (isLlm && f.key === "model") return null;
+            if (isLlm && f.key === "headers" && provider?.id !== "custom") return null;
             if (f.type === "provider") {
               return (
                 <div className="space-y-1.5" key={f.key}>
@@ -221,6 +244,24 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
               </div>
             );
           })}
+
+          {testing && (
+            <div role="status" aria-live="polite" className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              Testing connection…
+            </div>
+          )}
+          {testResult && !testing && (
+            <div role="status" aria-live="polite" className={"rounded-md border px-3 py-2 text-sm " + (testResult.ok ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5")}>
+              <p className={"font-medium " + (testResult.ok ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400")}>
+                {testResult.ok ? "✓ Connected" : "✕ Failed"}
+                <span className="ml-2 font-normal text-foreground/80">{testResult.message}</span>
+              </p>
+              {testResult.detail ? <p className="mt-1 text-xs text-foreground/70">{testResult.detail}</p> : null}
+              {testResult.fix_hint ? <p className="mt-1 text-xs font-medium text-amber-600">How to fix: {testResult.fix_hint}</p> : null}
+              {testResult.at ? <p className="mt-1 text-[11px] text-foreground/50">Test at {new Date(testResult.at).toLocaleString()}</p> : null}
+            </div>
+          )}
 
           <div className="flex flex-col gap-2 pt-2">
             <Button onClick={save} disabled={saving}>

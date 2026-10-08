@@ -38,3 +38,6 @@ Thumbs.db
 # Playwright
 playwright-report/
 test-results/
+
+# QA screenshot artifacts (local only)
+dashboard/qa-artifacts/

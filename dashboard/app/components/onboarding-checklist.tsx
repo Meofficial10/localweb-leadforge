@@ -29,7 +29,7 @@ export default function OnboardingChecklist() {
     { id: "llm", label: "Connect an LLM writer", desc: "Add an OpenAI-compatible key so drafts can be written.", href: "/integrations", done: llmOk },
     { id: "source", label: "Connect a lead source", desc: "Hook up OSM or Apify to discover businesses.", href: "/integrations", done: leadSourceOk },
     { id: "identity", label: "Verify sender identity", desc: "Set your sender email or phone in the settings.", href: "/settings", done: identityOk },
-    { id: "campaign", label: "Create your first campaign", desc: "Build a targeting plan in the wizard.", href: "/campaigns/new", done: campaignOk },
+    { id: "campaign", label: "Create your first campaign", desc: "Build a targeting plan in the wizard.", href: "/campaigns", done: campaignOk },
     { id: "draft", label: "Review drafts in the queue", desc: "Approve or edit generated outreach messages.", href: "/outreach", done: draftOk },
   ];
 

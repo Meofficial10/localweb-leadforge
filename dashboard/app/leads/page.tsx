@@ -10,6 +10,7 @@ import { leadsApi, type Lead, type LeadDetail } from "@/app/lib/api";
 import { PageHeader } from "@/app/components/shared/page-header";
 import { EmptyState } from "@/app/components/shared/empty-state";
 import { StatusChip } from "@/app/components/shared/status-badge";
+import { DemoDataBadge } from "@/app/components/shared/demo-data-badge";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
@@ -309,6 +310,7 @@ function LeadsPageInner() {
                       <button className="text-left font-medium text-primary hover:underline" onClick={() => window.history.replaceState(null, "", "?focus=" + l.id)}>
                         {l.name}
                       </button>
+                      {l.is_demo ? <span className="ml-1"><DemoDataBadge /></span> : null}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{l.category || "—"}</TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell">{(l.contacts || []).length ? (l.contacts as any[]).map((c) => c.value).join(", ") : "—"}</TableCell>

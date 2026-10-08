@@ -233,8 +233,8 @@ export default function CompliancePage() {
             ) : (
               audit.data.map((a: AuditItem) => (
                 <div key={a.id} className="flex items-start justify-between gap-3 border-b py-2 text-sm last:border-0">
-                  <div>
-                    <p className="font-medium">{a.action}</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{a.action}</p>
                     {a.detail && <p className="truncate text-xs text-muted-foreground">{JSON.stringify(a.detail)}</p>}
                   </div>
                   <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(a.created_at)}</span>

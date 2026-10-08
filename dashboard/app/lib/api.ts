@@ -151,7 +151,7 @@ export const integrationsApi = {
   list: () => get<{ cards: IntegrationCard[]; health: IntegrationHealth; required_ids: string[]; force_dry_run: boolean }>("/integrations"),
   setSecret: (key: string, value: string) => post("/integrations/secrets", { key, value }),
   clearSecret: (key: string) => del(`/integrations/secrets/${key}`),
-  test: (id: string) => post<{ ok: boolean; message: string; detail?: string; latency_ms?: number; at?: string }>(`/integrations/${id}/test`),
+  test: (id: string, values?: Record<string, unknown>) => post<{ ok: boolean; message: string; detail?: string; latency_ms?: number; fix_hint?: string; at?: string }>(`/integrations/${id}/test`, values ? { values } : undefined),
   configure: (id: string, values: Record<string, unknown>) => post<{ config: Record<string, unknown>; test: { ok: boolean; message: string; detail?: string; latency_ms?: number } }>(`/integrations/${id}/configure`, { values }),
   configureIntegration: (id: string, values: Record<string, unknown>) => post<{ config: Record<string, unknown>; test: { ok: boolean; message: string; detail?: string; latency_ms?: number } }>(`/integrations/${id}/configure`, { values }),
   models: (provider: string, baseUrl?: string) => get<{ models: string[] }>(`/integrations/llm/models`, { provider, base_url: baseUrl || "" }),
@@ -170,6 +170,8 @@ export const systemApi = {
     get<{ effective: Record<string, string> }>("/system/campaign-modes", { campaign_id: campaignId || "" }),
   audit: (params?: Record<string, string>) => get<any[]>("/system/audit", params),
   overview: () => get<SystemOverview>("/system/overview"),
+  demoData: () => get<DemoDataState>("/system/demo-data"),
+  clearDemoData: () => post<{ cleared: DemoDataCounts }>("/system/demo-data/clear"),
 };
 
 export interface SystemOverview {
@@ -200,7 +202,7 @@ export interface Lead {
   id: string; campaign_id?: string | null; name: string; category?: string | null;
   address?: string | null; status: string; contact_type?: string | null;
   has_website: boolean; rating?: number | null; review_count?: number | null;
-  source: string;
+  source: string; is_demo?: boolean;
   contacts?: { id: string; kind: string; value: string; source_url?: string }[];
 }
 export interface LeadDetail extends Lead {
@@ -213,7 +215,7 @@ export interface LeadDetail extends Lead {
 }
 export interface Draft {
   id: string; lead_id: string; lead_name: string; lead_category?: string | null;
-  subject?: string | null; body?: string | null; status: string; sequence_step: number;
+  subject?: string | null; body?: string | null; status: string; sequence_step: number; is_demo?: boolean;
   campaign_id?: string | null; compliance: { ok: boolean; reasons: string[] };
   created_at?: string | null;
 }
@@ -223,7 +225,7 @@ export interface InboxItem {
   handled: boolean; status: string; received_at?: string | null;
 }
 export interface CallItem {
-  id: string; lead_id: string; lead_name: string; outcome?: string | null;
+  id: string; lead_id: string; lead_name: string; outcome?: string | null; is_demo?: boolean;
   duration_sec?: number | null; ai_disclosed: boolean; started_at?: string | null;
   transcript?: string | null; dnc_checked_at?: string | null; recording_url?: string | null;
 }
@@ -261,7 +263,7 @@ export interface IntegrationCard {
   id: string; name: string; kind: string; required: boolean; description: string;
   providers: ProviderDef[]; fields: FieldDef[];
   provider: string; config: Record<string, unknown>;
-  status: IntegrationStatus; secret: SecretMeta | null;
+  status: IntegrationStatus; secret: SecretMeta | null; is_demo?: boolean;
 }
 export interface SecretMeta {
   key: string; is_set: boolean; masked: string; last_verified_at?: string | null;
@@ -278,4 +280,10 @@ export interface AppSettings {
   budgets: Record<string, number>;
   branding: Record<string, string>;
   tokens: Record<string, string[]>;
+}
+export interface DemoDataCounts { campaigns: number; leads: number; drafts: number; calls: number; integrations: number }
+export interface DemoDataState {
+  present: boolean;
+  campaigns: number; leads: number; drafts: number; calls: number; integrations: number;
+  message: string;
 }

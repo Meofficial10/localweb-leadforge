@@ -14,6 +14,7 @@ import { Badge } from "@/app/components/ui/badge";
 const ReadsPerDay = dynamic(() => import("@/app/components/overview-charts").then((m) => ({ default: m.LeadsPerDayChart })), { ssr: false, loading: () => <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">Loading chart…</div> });
 const FunnelChartDyn = dynamic(() => import("@/app/components/overview-charts").then((m) => ({ default: m.FunnelChart })), { ssr: false, loading: () => <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">Loading chart…</div> });
 import OnboardingChecklist from "@/app/components/onboarding-checklist";
+import { DemoDataBanner } from "@/app/components/demo-data-banner";
 
 function KpiCard({ icon, label, value, suffix, accent }: { icon: React.ReactNode; label: string; value: number | string; suffix?: string; accent?: string }) {
   return (
@@ -72,6 +73,7 @@ export default function OverviewPage() {
         description="Pipeline health at a glance. Everything runs in dry-run until you explicitly enable live."
         actions={dry ? <Badge variant="secondary">Global dry-run active</Badge> : null}
       />
+      <DemoDataBanner />
       {isLoading ? (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[]}</div>

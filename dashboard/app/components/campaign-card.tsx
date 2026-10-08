@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pause, Play, Copy, Trash2, Pencil, Settings2, Activity } from "lucide-react";
 import { toast } from "sonner";
-import { campaignsApi, type Campaign } from "@/app/lib/api";
+import { campaignsApi, systemApi, type Campaign } from "@/app/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
@@ -21,6 +21,15 @@ export function CampaignCard({ campaign, onEdit, onDuplicate }: { campaign: Camp
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: ["campaigns"] });
   const [runOpen, setRunOpen] = React.useState(false);
+
+  // Show the EFFECTIVE mode, never the raw campaign.mode, so a forced
+  // dry-run cannot display a campaign as 'live'.
+  const { data: modeData } = useQuery({
+    queryKey: ["campaign-modes", campaign.id],
+    queryFn: () => systemApi.campaignModes(campaign.id),
+    staleTime: 10_000,
+  });
+  const effectiveEmail = modeData?.effective?.email ?? "dry_run";
 
   const run = useMutation({
     mutationFn: () => campaignsApi.run(campaign.id),
@@ -53,7 +62,7 @@ export function CampaignCard({ campaign, onEdit, onDuplicate }: { campaign: Camp
             {campaign.city}, {campaign.country} · {(campaign.categories || []).join(", ") || "all categories"}
           </p>
         </div>
-        <ModeChip mode={campaign.mode} />
+        <ModeChip mode={effectiveEmail === "live" ? "live" : "dry-run"} />
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -63,7 +72,7 @@ export function CampaignCard({ campaign, onEdit, onDuplicate }: { campaign: Camp
           <Badge variant="secondary">Follow-up {campaign.followup_delay_days}d</Badge>
           {campaign.is_paused && <Badge variant="warning">paused</Badge>}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Button size="sm" variant={campaign.is_paused ? "secondary" : "outline"} onClick={() => pause.mutate(!campaign.is_paused)}>
             {campaign.is_paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
             {campaign.is_paused ? "Resume" : "Pause"}
