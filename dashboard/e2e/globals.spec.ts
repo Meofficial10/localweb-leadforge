@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("global UI: kill switch engage/release + dark theme", async ({ page, request }) => {
   // ensure system is NOT paused before the test (release kill switch via API)
   await request.post("http://127.0.0.1:8000/system/pause", { data: { paused: false } });
-  await page.goto("http://127.0.0.1:3006/", { waitUntil: "networkidle" });
+  await page.goto("http://127.0.0.1:3006/", { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(1000);
 
   // Kill switch present in top bar

@@ -65,9 +65,21 @@ export const campaignsApi = {
   pause: (id: string, paused: boolean) => patch<Campaign>(`/campaigns/${id}/pause?paused=${paused}`, undefined),
   duplicate: (id: string) => post<Campaign>(`/campaigns/${id}/duplicate`),
   validate: (state: Record<string, any>) => post<Record<string, {ok: boolean; errors: string[]}>>('/campaigns/validate', state),
-  runs: (id: string) => get<{apify_runs: any[]}>(`/campaigns/${id}/runs`),
+  runs: (id: string) => get<CampaignRuns>(`/campaigns/${id}/runs`),
 };
 
+export interface CampaignRuns {
+  apify_runs: {
+    id: string; apify_run_id?: string | null; actor_id: string; search?: string | null;
+    status: string; items_fetched: number; leads_imported: number;
+    estimated_cost_usd?: number | null; error?: string | null;
+    created_at?: string | null; finished_at?: string | null;
+  }[];
+  stages: { stage: string; count: number }[];
+  jobs: Record<string, Record<string, number>>;
+  active_runs: string[];
+  lead_total: number;
+}
 export interface WizardStepState {
   name?: string; description?: string | null;
   country?: string; state?: string; city?: string;

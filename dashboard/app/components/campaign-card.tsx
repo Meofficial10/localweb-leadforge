@@ -2,13 +2,15 @@
 
 import * as React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pause, Play, Copy, Trash2, Pencil, Settings2 } from "lucide-react";
+import { Pause, Play, Copy, Trash2, Pencil, Settings2, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { campaignsApi, type Campaign } from "@/app/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { ModeChip } from "@/app/components/shared/status-badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/app/components/ui/dialog";
+import CampaignRunView from "@/app/components/campaign-run-view";
 import {
   AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, AlertDialogCancel, AlertDialogAction,
@@ -18,6 +20,7 @@ import { asError } from "@/app/lib/utils";
 export function CampaignCard({ campaign, onEdit, onDuplicate }: { campaign: Campaign; onEdit: (c: Campaign) => void; onDuplicate?: (c: Campaign) => void }) {
   const qc = useQueryClient();
   const invalidate = () => qc.invalidateQueries({ queryKey: ["campaigns"] });
+  const [runOpen, setRunOpen] = React.useState(false);
 
   const run = useMutation({
     mutationFn: () => campaignsApi.run(campaign.id),
@@ -41,6 +44,7 @@ export function CampaignCard({ campaign, onEdit, onDuplicate }: { campaign: Camp
   });
 
   return (
+    <>
     <Card className={campaign.is_paused ? "opacity-75" : undefined}>
       <CardHeader className="flex flex-row items-start justify-between space-y-0">
         <div className="space-y-1">
@@ -73,6 +77,9 @@ export function CampaignCard({ campaign, onEdit, onDuplicate }: { campaign: Camp
           <Button size="sm" variant="outline" onClick={() => run.mutate()} title="Run discovery pipeline once (dry-run)">
             <Settings2 className="h-3.5 w-3.5" /> Run
           </Button>
+          <Button size="sm" variant="ghost" onClick={() => setRunOpen(true)} title="Open live run view">
+            <Activity className="h-3.5 w-3.5" /> View run
+          </Button>
           <div className="ml-auto">
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -99,5 +106,16 @@ export function CampaignCard({ campaign, onEdit, onDuplicate }: { campaign: Camp
         </div>
       </CardContent>
     </Card>
+
+      <Dialog open={runOpen} onOpenChange={setRunOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Run view — {campaign.name}</DialogTitle>
+            <DialogDescription>Live pipeline progress (dry-run; nothing real is sent).</DialogDescription>
+          </DialogHeader>
+          <CampaignRunView campaign={campaign} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

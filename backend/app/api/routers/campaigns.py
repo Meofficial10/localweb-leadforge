@@ -4,6 +4,7 @@ import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -282,17 +283,42 @@ def validate_campaign_wizard(payload: WizardState):
 
 @router.get('/{campaign_id}/runs')
 def list_campaign_runs(campaign_id: str, db: Session = Depends(get_session)):
-    """Run history for the campaign run view (apify actor runs)."""
+    """Run history + live pipeline stage breakdown for the run view.
+
+    Returns apify actor runs and a per-stage lead count (discover ->
+    enrich -> profile -> demo -> draft -> send), plus job stage counts,
+    so the console can render a live pipeline and stop polling once
+    every stage is idle. (M6)"""
     camp = db.get(Campaign, campaign_id)
     if not camp:
         raise HTTPException(404, 'campaign not found')
     from app.models.apify_run import ApifyRun
+    from app.models.lead import Lead
+    from app.models.job import Job
     apify_runs = db.query(ApifyRun).filter(ApifyRun.campaign_id == campaign_id).order_by(ApifyRun.created_at.desc()).limit(10).all()
-    return {"apify_runs": [{
-        "id": r.id, "apify_run_id": r.apify_run_id, "actor_id": r.actor_id,
-        "search": r.search, "status": r.status, "items_fetched": r.items_fetched,
-        "leads_imported": r.leads_imported, "estimated_cost_usd": r.estimated_cost_usd,
-        "error": r.error,
-        "created_at": str(r.created_at) if r.created_at else None,
-        "finished_at": str(r.finished_at) if r.finished_at else None,
-    } for r in apify_runs], "jobs": []}
+    # Pipeline stages from lead status (statuses produced by the pipeline).
+    lead_rows = db.query(Lead.status, func.count(Lead.id)).filter(Lead.campaign_id == campaign_id).group_by(Lead.status).all()
+    lead_counts = {st: int(n) for st, n in lead_rows}
+    stage_defs = [('discover', ['discovered', 'new']), ('enrich', ['enriched']),
+                  ('profile', ['profiled']), ('demo', ['demo_ready']),
+                  ('draft', ['contacted']), ('send', ['sent', 'replied'])]
+    stages = [{'stage': name, 'count': sum(lead_counts.get(s, 0) for s in statuses)} for name, statuses in stage_defs]
+    jobs = db.query(Job.stage, Job.status, func.count(Job.id)).group_by(Job.stage, Job.status).all()
+    job_counts = {}
+    for st, sta, n in jobs:
+        job_counts.setdefault(st, {})[sta] = int(n)
+    active_apify = [r.status for r in apify_runs if r.status in ('queued', 'running', 'fetching')]
+    return {
+        'apify_runs': [{
+            'id': r.id, 'apify_run_id': r.apify_run_id, 'actor_id': r.actor_id,
+            'search': r.search, 'status': r.status, 'items_fetched': r.items_fetched,
+            'leads_imported': r.leads_imported, 'estimated_cost_usd': r.estimated_cost_usd,
+            'error': r.error,
+            'created_at': str(r.created_at) if r.created_at else None,
+            'finished_at': str(r.finished_at) if r.finished_at else None,
+        } for r in apify_runs],
+        'stages': stages,
+        'jobs': job_counts,
+        'active_runs': active_apify,
+        'lead_total': sum(lead_counts.values()),
+    }

@@ -13,6 +13,7 @@ import { Badge } from "@/app/components/ui/badge";
 
 const ReadsPerDay = dynamic(() => import("@/app/components/overview-charts").then((m) => ({ default: m.LeadsPerDayChart })), { ssr: false, loading: () => <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">Loading chart…</div> });
 const FunnelChartDyn = dynamic(() => import("@/app/components/overview-charts").then((m) => ({ default: m.FunnelChart })), { ssr: false, loading: () => <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">Loading chart…</div> });
+import OnboardingChecklist from "@/app/components/onboarding-checklist";
 
 function KpiCard({ icon, label, value, suffix, accent }: { icon: React.ReactNode; label: string; value: number | string; suffix?: string; accent?: string }) {
   return (
@@ -78,7 +79,8 @@ export default function OverviewPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <OnboardingChecklist />
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <KpiCard icon={<Users className="h-4 w-4" />} label="Leads found" value={k?.leads_found ?? 0} />
             <KpiCard icon={<Mail className="h-4 w-4" />} label="Emails drafted" value={k?.emails_drafted ?? 0} />
             <KpiCard icon={<CheckCircle2 className="h-4 w-4" />} label="Emails sent" value={k?.emails_sent ?? 0} />
