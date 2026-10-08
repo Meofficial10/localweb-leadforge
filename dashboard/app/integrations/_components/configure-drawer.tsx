@@ -202,7 +202,7 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
               <p className="text-xs text-muted-foreground">{models.length ? String(models.length) + " models available — pick one or type a custom name." : "Click the plug to fetch the provider's model list."}</p>
             </div>
           )}
-          {isLlm && modelVal !== "" && (
+          {isLlm && (provider?.id === "custom" || modelVal !== "") && (
             <div className="space-y-1.5">
               <Label htmlFor="custom-model">Model name</Label>
               <Input id="custom-model" value={modelVal} onChange={(e) => setFieldVals((f) => ({ ...f, model: e.target.value }))} placeholder="e.g. qwen2.5:7b" />
