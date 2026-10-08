@@ -77,6 +77,7 @@ export function IntegrationCardView({ card, onConfigure }: { card: CardT; onConf
 
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill status={testOutcome || card.status} />
+          {card.is_demo ? <DemoDataBadge /> : null}
         </div>
         {card.status.detail ? <p className="text-xs text-muted-foreground">{card.status.detail}</p> : null}
         {testOutcome?.detail ? <p className="text-xs text-muted-foreground">{testOutcome.detail}</p> : null}
