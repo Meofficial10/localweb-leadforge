@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Users, Mail, MousePointerClick, CheckCircle2, Phone, ShieldAlert, Loader2, Activity, Gauge } from "lucide-react";
-import { systemApi, settingsApi } from "@/app/lib/api";
+import { Users, Mail, MousePointerClick, CheckCircle2, Phone, ShieldAlert, Loader2, Activity, Gauge, Sparkles } from "lucide-react";
+import { systemApi, settingsApi, aiApi } from "@/app/lib/api";
 import { PageHeader } from "@/app/components/shared/page-header";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import dynamic from "next/dynamic";
@@ -62,6 +62,7 @@ export default function OverviewPage() {
   const status = { data: overview?.status };
   const caps = { data: overview?.caps };
   const activity = overview?.audit ?? [];
+  const { data: aiData } = useQuery({ queryKey: ["ai-activity"], queryFn: aiApi.activity, staleTime: 10_000 });
   const activityLoading = isLoading;
   const k = data?.kpis;
   const dry = status.data?.force_dry_run !== false;
@@ -82,6 +83,15 @@ export default function OverviewPage() {
       ) : (
         <>
           <OnboardingChecklist />
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-xs font-medium text-muted-foreground">AI calls today</CardTitle><span className="text-primary"><Sparkles className="h-4 w-4" /></span></CardHeader>
+              <CardContent><p className="text-2xl font-bold">{aiData?.calls_today ?? 0}</p><p className="text-xs text-muted-foreground">model: {aiData?.active.model ?? "—"}</p></CardContent>
+            </Card>
+            <Card><CardHeader className="pb-1"><CardTitle className="text-xs">AI latency (avg)</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{aiData?.avg_latency_ms != null ? (aiData.avg_latency_ms / 1000).toFixed(1) + "s" : "—"}</p></CardContent></Card>
+            <Card><CardHeader className="pb-1"><CardTitle className="text-xs">AI failures today</CardTitle></CardHeader><CardContent><p className={"text-2xl font-bold " + (aiData?.failures_today ? "text-destructive" : "")}>{aiData?.failures_today ?? 0}</p></CardContent></Card>
+            <Card><CardHeader className="pb-1"><CardTitle className="text-xs">LLM calls total</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{aiData?.total_calls ?? 0}</p></CardContent></Card>
+          </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <KpiCard icon={<Users className="h-4 w-4" />} label="Leads found" value={k?.leads_found ?? 0} />
             <KpiCard icon={<Mail className="h-4 w-4" />} label="Emails drafted" value={k?.emails_drafted ?? 0} />

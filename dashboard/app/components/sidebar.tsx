@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Megaphone, Users, Send, Inbox, Phone, ShieldCheck, Plug, Settings,
+  LayoutDashboard, Megaphone, Users, Send, Inbox, Phone, ShieldCheck, Plug, Sparkles, Settings,
 } from "lucide-react";
 import { cn } from "@/app/lib/utils";
 
@@ -16,6 +16,7 @@ const items = [
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/calls", label: "Calls", icon: Phone },
   { href: "/compliance", label: "Compliance", icon: ShieldCheck },
+  { href: "/ai-activity", label: "AI activity", icon: Sparkles },
   { href: "/integrations", label: "Integrations", icon: Plug },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

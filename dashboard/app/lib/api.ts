@@ -114,6 +114,27 @@ export const locationsApi = {
 };
 
 
+
+export interface AIActivityRow {
+  id: number; run_id?: string | null; lead_id?: string | null; purpose: string;
+  provider: string; model?: string | null; latency_ms?: number | null;
+  prompt_tokens?: number | null; completion_tokens?: number | null; total_tokens?: number | null;
+  status: string; error?: string | null; prompt: string; response: string; created_at?: string | null;
+}
+export interface AIActivity {
+  calls_today: number; failures_today: number; avg_latency_ms?: number | null;
+  total_calls: number; calls: AIActivityRow[]; active: { provider: string; model: string };
+}
+export const aiApi = {
+  activity: () => get<AIActivity>("/ai/activity"),
+  playground: (body: any) => post<any>("/ai/playground", body),
+  customProviders: {
+    list: () => get<any>("/integrations/llm/custom-providers"),
+    add: (body: any) => post<any>("/integrations/llm/custom-providers", body),
+    del: (pid: string) => del("/integrations/llm/custom-providers/" + pid),
+  },
+};
+
 export const queueApi = {
   list: () => get<Draft[]>("/queue"),
   approve: (id: string) => post<Draft>(`/queue/${id}/approve`),

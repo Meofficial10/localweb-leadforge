@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, PlugZap, Info } from "lucide-react";
+import { Loader2, PlugZap, Info, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -15,7 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/app/components/ui/select";
 import { Badge } from "@/app/components/ui/badge";
-import { integrationsApi, type IntegrationCard, type ProviderDef } from "@/app/lib/api";
+import { integrationsApi, aiApi, type IntegrationCard, type ProviderDef } from "@/app/lib/api";
 import { asError } from "@/app/lib/utils";
 import { KindIcon } from "./kind-icons";
 import { StatusPill } from "./status-pill";
@@ -32,6 +32,11 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
   const [fetchingModels, setFetchingModels] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
+  const [playPrompt, setPlayPrompt] = React.useState("");
+  const [playResult, setPlayResult] = React.useState<any>(null);
+  const [playing, setPlaying] = React.useState(false);
+  const [showCustom, setShowCustom] = React.useState(false);
+  const [custom, setCustom] = React.useState({ name: "", base_url: "", model: "", api_key: "" });
   const [testResult, setTestResult] = React.useState<{ ok: boolean; message: string; detail?: string; fix_hint?: string; at?: string } | null>(null);
 
   React.useEffect(() => {
@@ -131,6 +136,27 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
   };
 
   const modelVal = fieldVals["model"] || "";
+  const runPlayground = async () => {
+    if (!playPrompt.trim()) return;
+    setPlaying(true);
+    setPlayResult(null);
+    try {
+      const res = await aiApi.playground({ prompt: playPrompt, model: modelVal || "", base_url: baseUrl || "" });
+      setPlayResult({ reply: res.reply, latency_ms: res.latency_ms, error: res.error });
+      if (!res.ok) toast.error(res.error || "Playground failed");
+    } catch (e) { setPlayResult({ error: asError(e) }); toast.error(asError(e)); }
+    finally { setPlaying(false); }
+  };
+  const addCustom = async () => {
+    if (!custom.name.trim() || !custom.base_url.trim()) { toast.error("Name and Base URL are required"); return; }
+    try {
+      await aiApi.customProviders.add({ name: custom.name, base_url: custom.base_url, model: custom.model, api_key: custom.api_key });
+      toast.success("Custom provider saved");
+      setShowCustom(false);
+      setCustom({ name: "", base_url: "", model: "", api_key: "" });
+      qc.invalidateQueries({ queryKey: ["integrations"] });
+    } catch (e) { toast.error(asError(e)); }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -151,8 +177,7 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
             <span className="text-xs text-muted-foreground">Last checked: {card.status.last_checked ? new Date(card.status.last_checked).toLocaleString() : "never"}</span>
           </div>
 
-          {card.providers.length > 1 && (
-            <div className="space-y-1.5">
+          {card.providers.length > 1 && (<div className="space-y-1.5">
               <Label htmlFor="provider">Provider</Label>
               <Select value={providerId} onValueChange={onProviderChange}>
                 <SelectTrigger id="provider" className="w-full"><SelectValue placeholder="Select provider" /></SelectTrigger>
@@ -166,16 +191,14 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
             </div>
           )}
 
-          {provider?.base_url_editable && (
-            <div className="space-y-1.5">
+          {provider?.base_url_editable && (<div className="space-y-1.5">
               <Label htmlFor="base-url">Base URL</Label>
               <Input id="base-url" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder={provider.base_url_default || "https://..."} />
               {provider.probe_url ? <p className="text-xs text-muted-foreground">Probe: GET {provider.base_url_default}{provider.probe_url}</p> : null}
             </div>
           )}
 
-          {needsKey && (
-            <div className="space-y-1.5">
+          {needsKey && (<div className="space-y-1.5">
               <Label htmlFor="api-key">{card.secret?.is_set ? "API key (replace — leave blank to keep)" : "API key"}</Label>
               <Input id="api-key" type="password" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={card.secret?.is_set ? "••••••••" : "Paste key — encrypted at rest"} />
               {card.secret?.is_set ? (
@@ -184,8 +207,7 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
             </div>
           )}
 
-          {isLlm && (
-            <div className="space-y-1.5">
+          {isLlm && (<div className="space-y-1.5">
               <Label htmlFor="model">Model</Label>
               <div className="flex gap-2">
                 <Select value={modelVal || "__custom__"} onValueChange={(v) => setFieldVals((f) => ({ ...f, model: v === "__custom__" ? "" : v }))}>
@@ -202,8 +224,7 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
               <p className="text-xs text-muted-foreground">{models.length ? String(models.length) + " models available — pick one or type a custom name." : "Click the plug to fetch the provider's model list."}</p>
             </div>
           )}
-          {isLlm && (provider?.id === "custom" || modelVal !== "") && (
-            <div className="space-y-1.5">
+          {isLlm && (provider?.id === "custom" || modelVal !== "") && (<div className="space-y-1.5">
               <Label htmlFor="custom-model">Model name</Label>
               <Input id="custom-model" value={modelVal} onChange={(e) => setFieldVals((f) => ({ ...f, model: e.target.value }))} placeholder="e.g. qwen2.5:7b" />
             </div>
@@ -213,8 +234,7 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
             if (isLlm && f.key === "model") return null;
             if (isLlm && f.key === "headers" && provider?.id !== "custom") return null;
             if (f.type === "provider") {
-              return (
-                <div className="space-y-1.5" key={f.key}>
+              return (<div className="space-y-1.5" key={f.key}>
                   <Label htmlFor={f.key}>{f.label}</Label>
                   <Select value={fieldVals[f.key] || "__none__"} onValueChange={(v) => setFieldVals((x) => ({ ...x, [f.key]: v === "__none__" ? "" : v }))}>
                     <SelectTrigger id={f.key}><SelectValue placeholder="None" /></SelectTrigger>
@@ -228,16 +248,14 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
               );
             }
             if (f.type === "textarea") {
-              return (
-                <div className="space-y-1.5" key={f.key}>
+              return (<div className="space-y-1.5" key={f.key}>
                   <Label htmlFor={f.key}>{f.label}</Label>
                   <Textarea id={f.key} rows={2} value={fieldVals[f.key] || ""} onChange={(e) => setFieldVals((x) => ({ ...x, [f.key]: e.target.value }))} placeholder={f.placeholder} />
                   {f.help ? <p className="text-xs text-muted-foreground">{f.help}</p> : null}
                 </div>
               );
             }
-            return (
-              <div className="space-y-1.5" key={f.key}>
+            return (<div className="space-y-1.5" key={f.key}>
                 <Label htmlFor={f.key}>{f.label}</Label>
                 <Input id={f.key} type={f.type === "number" ? "number" : f.type === "email" ? "email" : "text"} step={f.type === "number" ? "any" : undefined} value={fieldVals[f.key] || ""} onChange={(e) => setFieldVals((x) => ({ ...x, [f.key]: e.target.value }))} placeholder={f.placeholder} />
                 {f.help ? <p className="text-xs text-muted-foreground">{f.help}</p> : null}
@@ -245,14 +263,12 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
             );
           })}
 
-          {testing && (
-            <div role="status" aria-live="polite" className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+          {testing && (<div role="status" aria-live="polite" className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               Testing connection…
             </div>
           )}
-          {testResult && !testing && (
-            <div role="status" aria-live="polite" className={"rounded-md border px-3 py-2 text-sm " + (testResult.ok ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5")}>
+          {testResult && !testing && (<div role="status" aria-live="polite" className={"rounded-md border px-3 py-2 text-sm " + (testResult.ok ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5")}>
               <p className={"font-medium " + (testResult.ok ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400")}>
                 {testResult.ok ? "✓ Connected" : "✕ Failed"}
                 <span className="ml-2 font-normal text-foreground/80">{testResult.message}</span>
@@ -263,6 +279,38 @@ export function ConfigureDrawer({ card, open, onOpenChange }: {
             </div>
           )}
 
+          {isLlm && (<div className="rounded-md border p-3">
+              <p className="mb-2 text-sm font-medium inline-flex items-center gap-2"><Sparkles className="h-4 w-4" /> Playground</p>
+              <Textarea rows={3} value={playPrompt} onChange={(e) => setPlayPrompt(e.target.value)} placeholder="Ask the model anything - it will reply with real generation." />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" onClick={runPlayground} disabled={playing || !playPrompt.trim()}>
+                  {playing ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Run
+                </Button>
+                <span className="text-xs text-muted-foreground">uses model {modelVal || "qwen2.5:3b"}</span>
+              </div>
+              {playResult ? (<div className={"mt-2 rounded-md border px-3 py-2 text-sm " + (playResult.error ? "border-red-500/30 bg-red-500/5" : "border-green-500/30 bg-green-500/5")}>
+                  {playResult.error ? <p className="text-destructive">{playResult.error}</p> : (<><p className="whitespace-pre-wrap font-mono text-xs text-foreground">{playResult.reply}</p><p className="mt-1 text-xs text-muted-foreground">{playResult.latency_ms != null ? (playResult.latency_ms / 1000).toFixed(1) + "s" : ""}</p></>)}
+                </div>
+              ) : null}
+            </div>
+          )}
+          {isLlm && (<div className="rounded-md border p-3">
+              <p className="mb-2 text-sm font-medium">Custom OpenAI-compatible providers</p>
+              {showCustom ? (<div className="space-y-3">
+                  <div><Label>Name</Label><Input value={custom.name} onChange={(e) => setCustom({ ...custom, name: e.target.value })} placeholder="e.g. My vLLM" /></div>
+                  <div><Label>Base URL</Label><Input value={custom.base_url} onChange={(e) => setCustom({ ...custom, base_url: e.target.value })} placeholder="https://.../v1" /></div>
+                  <div><Label>Model</Label><Input value={custom.model} onChange={(e) => setCustom({ ...custom, model: e.target.value })} placeholder="your-model-name" /></div>
+                  <div><Label>API key</Label><Input type="password" value={custom.api_key} onChange={(e) => setCustom({ ...custom, api_key: e.target.value })} placeholder="optional" /></div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={addCustom}>Save provider</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setShowCustom(false)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <Button size="sm" variant="outline" onClick={() => setShowCustom(true)}>+ Add custom provider</Button>
+              )}
+            </div>
+          )}
           <div className="flex flex-col gap-2 pt-2">
             <Button onClick={save} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlugZap className="h-4 w-4" />}
