@@ -79,6 +79,17 @@ export interface CampaignRuns {
   jobs: Record<string, Record<string, number>>;
   active_runs: string[];
   lead_total: number;
+  runs?: {
+    id: string; status: string; mode?: string | null;
+    started_at?: string | null; finished_at?: string | null;
+    summary?: Record<string, any> | null; error?: string | null;
+  }[];
+  events?: Record<string, {
+    stage: string; status: string; message?: string | null;
+    count?: number | null; elapsed_ms?: number | null; ts?: string | null;
+  }[]>;
+  summary_banner?: string | null;
+  latest_run_status?: string | null;
 }
 export interface WizardStepState {
   name?: string; description?: string | null;

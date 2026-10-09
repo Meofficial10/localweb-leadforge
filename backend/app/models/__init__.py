@@ -12,6 +12,7 @@ from app.models.audit_log import AuditLog
 from app.models.settings_meta import SettingKV
 from app.models.integration_secret import IntegrationSecret, DemoProject
 from app.models.apify_run import ApifyRun
+from app.models.run import Run, RunEvent
 
 __all__ = [
     "Base", "Campaign", "Lead", "Contact", "Profile", "DemoSite",

@@ -12,7 +12,7 @@ from app.core.audit import record
 from app.db import get_session
 from app.models.campaign import Campaign
 from app.models.job import Job
-from app.jobs.pipeline import run_campaign_once
+from app.jobs.pipeline import run_campaign_once, run_campaign_async
 
 router = APIRouter(prefix='/campaigns', tags=['campaigns'])
 
@@ -172,10 +172,16 @@ def delete_campaign(campaign_id: str, db: Session = Depends(get_session)):
 
 @router.post('/{campaign_id}/run')
 def trigger_run(campaign_id: str, db: Session = Depends(get_session)):
+    """Kick off a background pipeline run and return immediately. The run view
+    polls /campaigns/<id>/runs for live stage events and the final summary."""
     camp = db.get(Campaign, campaign_id)
     if not camp:
         raise HTTPException(404, 'campaign not found')
-    return run_campaign_once(db, camp)
+    from app.db import get_sync_session
+    from app.models.run import Run
+    run_campaign_async(get_sync_session, campaign_id)
+    return {'status': 'queued', 'campaign_id': campaign_id,
+            'message': 'Run started in the background (dry-run mode: nothing will be sent).'} 
 
 
 @router.patch('/{campaign_id}/pause')
@@ -281,6 +287,29 @@ def validate_campaign_wizard(payload: WizardState):
     return {k: {'ok': not v, 'errors': v} for k, v in errors.items()}
 
 
+def _banner_text(summary, stages, lead_counts) -> str | None:
+    """Human-readable one-liner for the run summary banner. Mirrors the M1 wording
+    (Found X, Y no website, Z with contact, ...) and explains plainly when zero."""
+    if not summary:
+        return None
+    found = summary.get('discovery_detail', {}).get('found', summary.get('discovered', 0))
+    no_web = summary.get('discovery_detail', {}).get('no_website', 0)
+    with_contact = summary.get('with_phone', 0) + summary.get('with_email', 0)
+    parts = [
+        'Found %s' % (found or summary.get('discovered', 0)),
+        '%s no website' % (no_web or summary.get('discovered', 0)),
+        '%s profiled' % summary.get('profiled', 0),
+        '%s demos' % summary.get('demo_built', 0),
+        '%s drafts' % summary.get('queued_email', 0),
+    ]
+    text = ', '.join(p for p in parts if not p.endswith(' 0') or 'profiled' in p)
+    if not found:
+        text = 'No leads found in this run. Check that a lead source is configured and the area/category yields businesses. ' + text
+    elif no_web == 0:
+        text = 'Every found place already has a website - no new no-website leads. ' + text
+    return text
+
+
 @router.get('/{campaign_id}/runs')
 def list_campaign_runs(campaign_id: str, db: Session = Depends(get_session)):
     """Run history + live pipeline stage breakdown for the run view.
@@ -295,6 +324,7 @@ def list_campaign_runs(campaign_id: str, db: Session = Depends(get_session)):
     from app.models.apify_run import ApifyRun
     from app.models.lead import Lead
     from app.models.job import Job
+    from app.models.run import Run, RunEvent
     apify_runs = db.query(ApifyRun).filter(ApifyRun.campaign_id == campaign_id).order_by(ApifyRun.created_at.desc()).limit(10).all()
     # Pipeline stages from lead status (statuses produced by the pipeline).
     lead_rows = db.query(Lead.status, func.count(Lead.id)).filter(Lead.campaign_id == campaign_id).group_by(Lead.status).all()
@@ -308,6 +338,18 @@ def list_campaign_runs(campaign_id: str, db: Session = Depends(get_session)):
     for st, sta, n in jobs:
         job_counts.setdefault(st, {})[sta] = int(n)
     active_apify = [r.status for r in apify_runs if r.status in ('queued', 'running', 'fetching')]
+    runs_rows = db.query(Run).filter(Run.campaign_id == campaign_id).order_by(Run.started_at.desc()).limit(10).all()
+    ev_rows = db.query(RunEvent).filter(RunEvent.run_id.in_([r.id for r in runs_rows])).order_by(RunEvent.ts.asc()).limit(200).all()
+    events_by_run = {}
+    for ev in ev_rows:
+        events_by_run.setdefault(ev.run_id, []).append({
+            'stage': ev.stage, 'status': ev.status, 'message': ev.message,
+            'count': ev.count, 'elapsed_ms': ev.elapsed_ms,
+            'ts': str(ev.ts) if ev.ts else None,
+        })
+    latest_run = runs_rows[0] if runs_rows else None
+    summary = latest_run.summary if latest_run and latest_run.summary else None
+    banner = _banner_text(summary, stages, lead_counts) if latest_run else None
     return {
         'apify_runs': [{
             'id': r.id, 'apify_run_id': r.apify_run_id, 'actor_id': r.actor_id,
@@ -321,4 +363,13 @@ def list_campaign_runs(campaign_id: str, db: Session = Depends(get_session)):
         'jobs': job_counts,
         'active_runs': active_apify,
         'lead_total': sum(lead_counts.values()),
+        'runs': [{
+            'id': r.id, 'status': r.status, 'mode': r.mode,
+            'started_at': str(r.started_at) if r.started_at else None,
+            'finished_at': str(r.finished_at) if r.finished_at else None,
+            'summary': r.summary, 'error': r.error,
+        } for r in runs_rows],
+        'events': events_by_run,
+        'summary_banner': banner,
+        'latest_run_status': latest_run.status if latest_run else None,
     }
