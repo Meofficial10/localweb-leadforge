@@ -34,10 +34,13 @@ def _card(db: Session, integ: _ig.IntegrationDef) -> dict:
     secret = None
     if prov is not None and prov.needs_key and _ig._is_key_set(db, prov.key_secret_key):
         secret = secret_meta(db, prov.key_secret_key)
+    provs = list(integ.providers)
+    if integ.id == "llm":
+        provs = provs + _ig.custom_llm_providers(db)
     return {
         "id": integ.id, "name": integ.name, "kind": integ.kind, "required": integ.required,
         "description": integ.description,
-        "providers": [p.to_dict() for p in integ.providers],
+        "providers": [p.to_dict() for p in provs],
         "fields": [f.to_dict() for f in integ.fields],
         "provider": c.get("provider"),
         "config": c,
@@ -110,3 +113,30 @@ def delete_integration_secret(key: str, db: Session = Depends(get_session)):
         db.delete(row)
         db.commit()
     return {"cleared": True}
+
+class CustomProviderRequest(BaseModel):
+    id: str = ""
+    name: str = ""
+    base_url: str = ""
+    api_key: str = ""
+    model: str = ""
+    headers: dict = {}
+    enabled: bool = True
+
+
+@router.get("/llm/custom-providers")
+def list_custom_providers(db: Session = Depends(get_session)):
+    return {"providers": [p.to_dict() for p in _ig.custom_llm_providers(db)]}
+
+
+@router.post("/llm/custom-providers")
+def add_custom_provider(payload: CustomProviderRequest, db: Session = Depends(get_session)):
+    data = {"id": payload.id, "name": payload.name, "base_url": payload.base_url,
+            "api_key": payload.api_key, "model": payload.model,
+            "headers": payload.headers, "enabled": payload.enabled}
+    return _ig.save_custom_llm_provider(db, data)
+
+
+@router.delete("/llm/custom-providers/{pid}")
+def remove_custom_provider(pid: str, db: Session = Depends(get_session)):
+    return _ig.delete_custom_llm_provider(db, pid)

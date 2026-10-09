@@ -124,6 +124,78 @@ LLM_PROVIDERS = [
     ProviderDef("mock", "Mock (demo)", note="Canned, random responses — NO real LLM. Demo only."),
 ]
 
+_CUSTOM_SLOT = "integration.llm.custom_providers"
+
+def custom_llm_providers(db):
+    """Return saved custom LLM provider defs as ProviderDef list."""
+    raw = get_setting(db, _CUSTOM_SLOT, "")
+    if isinstance(raw, str) and raw.strip():
+        import json
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            raw = []
+    if not isinstance(raw, list):
+        raw = []
+    out = []
+    for i, c in enumerate(raw):
+        if not isinstance(c, dict):
+            continue
+        pid = str(c.get("id") or ("custom-" + str(i)))
+        out.append(ProviderDef(
+            pid, c.get("name") or pid.capitalize(),
+            needs_key=True, key_secret_key="llm.custom." + pid + ".api_key",
+            base_url_default=str(c.get("base_url") or ""), base_url_editable=True,
+            static_models=[str(c.get("model") or "")] if c.get("model") else [],
+            note="Custom provider - base URL, key, model stored in LeadForge DB.",
+        ))
+    return out
+
+def save_custom_llm_provider(db, data):
+    """Add or update a custom provider. Returns the new list of defs."""
+    import json
+    raw = get_setting(db, _CUSTOM_SLOT, "")
+    if isinstance(raw, str) and raw.strip():
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            raw = []
+    if not isinstance(raw, list):
+        raw = []
+    rec = dict(data or {})
+    pid = (rec.get("id") or "").strip() or None
+    if not pid:
+        pid = "custom-" + str(len(raw) + 1)
+        rec["id"] = pid
+    key = rec.get("api_key", "")
+    if key:
+        set_secret(db, "llm.custom." + pid + ".api_key", str(key))
+        rec["api_key"] = ""  # never store the key in settings
+    idx = next((i for i, c in enumerate(raw) if isinstance(c, dict) and c.get("id") == pid), None)
+    if idx is None:
+        raw.append(rec)
+    else:
+        raw[idx] = rec
+    set_setting(db, _CUSTOM_SLOT, json.dumps(raw))
+    return {"providers": [p.to_dict() for p in custom_llm_providers(db)]}
+
+def delete_custom_llm_provider(db, pid):
+    import json
+    raw = get_setting(db, _CUSTOM_SLOT, "")
+    if isinstance(raw, str) and raw.strip():
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            raw = []
+    if not isinstance(raw, list):
+        raw = []
+    raw = [c for c in raw if not (isinstance(c, dict) and c.get("id") == pid)]
+    set_setting(db, _CUSTOM_SLOT, json.dumps(raw))
+    return {"cleared": True}
+
+
+
+
 HOSTING_PROVIDERS = [
     ProviderDef("local", "Local file hosting", note="Free, writes to backend/data/demo_sites."),
     ProviderDef("cloudflare_pages", "Cloudflare Pages", needs_key=True,
@@ -275,7 +347,10 @@ def convert(v: Any) -> Any:
 
 def provider_for(db: Session, integ: IntegrationDef) -> ProviderDef:
     pid = get_setting(db, integ.provider_key, integ.providers[0].id if integ.providers else "")
-    return next((p for p in integ.providers if p.id == pid), None) or (integ.providers[0] if integ.providers else None)
+    pool = list(integ.providers)
+    if integ.id == "llm":
+        pool = pool + custom_llm_providers(db)
+    return next((p for p in pool if p.id == pid), None) or (pool[0] if pool else None)
 
 
 def _is_key_set(db: Session, key) -> bool:
@@ -350,7 +425,10 @@ def save_config(db: Session, integ_id: str, payload: dict) -> dict:
     if integ is None:
         raise KeyError(integ_id)
     if "provider" in payload:
-        if not any(p.id == payload["provider"] for p in integ.providers):
+        pool = list(integ.providers)
+        if integ.id == "llm":
+            pool = pool + custom_llm_providers(db)
+        if not any(p.id == payload["provider"] for p in pool):
             raise ValueError("unknown provider: " + str(payload["provider"]))
         set_setting(db, integ.provider_key, payload["provider"])
     if "enabled" in payload:
