@@ -66,11 +66,14 @@ def _patch_post(resp):
 def test_ollama_success():
     db = _session()
     ok = {"models": [{"name": "qwen2.5:7b"}, {"name": "llama3.2:3b"}]}
-    with _patch_get(FakeResponse(200, ok)):
+    chat = {"message": {"content": "OK OK"}, "prompt_eval_count": 12, "eval_count": 2}
+    with _patch_get(FakeResponse(200, ok)), _patch_post(FakeResponse(200, chat)):
         r = ig.test_integration(db, "llm", {"provider": "ollama", "base_url": "http://x", "model": "qwen2.5:7b"})
     assert r["ok"] is True
     assert "Ollama" in r["message"]
-    assert "qwen2.5:7b" in r["detail"]
+    assert "OK OK" in r["detail"]
+    assert r.get("active_model") == "qwen2.5:7b"
+    assert r.get("latency_ms") is not None
 
 
 def test_ollama_wrong_url_fails():

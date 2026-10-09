@@ -442,17 +442,40 @@ def _test_llm(db, eff):
         if prov.id == "ollama":
             t0 = time.perf_counter()
             r = httpx.get(base + "/api/tags", timeout=TEST_TIMEOUT)
-            latency = int((time.perf_counter() - t0) * 1000)
+            tags_latency = int((time.perf_counter() - t0) * 1000)
             if r.status_code != 200:
                 return _record_test(db, "llm", {"ok": False,
                                                  "message": "Ollama not running at " + (base or "http://localhost:11434"),
                                                  "detail": "GET /api/tags -> HTTP " + str(r.status_code),
                                                  "fix_hint": "start it with: ollama serve"})
             names = [m.get("name") or m.get("model") for m in r.json().get("models", [])]
-            picked = model or (names[0] if names else "")
-            return _record_test(db, "llm", {"ok": True, "message": "Ollama connected",
-                                             "detail": "Ollama " + str(len(names)) + " models; " + (picked or "none selected") + ". api/tags in " + str(latency) + " ms.",
-                                             "latency_ms": latency})
+            picked = (model or (names[0] if names else "")).strip()
+            bb = base or "http://localhost:11434"
+            if picked and picked not in names:
+                return _record_test(db, "llm", {"ok": False,
+                                                 "message": "Model " + picked + " is not installed",
+                                                 "detail": "Installed: " + (", ".join(names) if names else "none") + ".",
+                                                 "fix_hint": "install it with: ollama pull " + picked})
+            g0 = time.perf_counter()
+            gr = httpx.post(bb + "/api/chat", json={"model": picked or "qwen2.5:3b",
+                                                    "messages": [{"role": "user",
+                                                                  "content": "Reply with exactly the two words: OK OK"}],
+                                                   "stream": False}, timeout=90)
+            gen_latency = int((time.perf_counter() - g0) * 1000)
+            if gr.status_code != 200:
+                return _record_test(db, "llm", {"ok": False, "message": "Ollama generation failed",
+                                                 "detail": "/api/chat -> HTTP " + str(gr.status_code) + " in " + str(gen_latency) + " ms",
+                                                 "fix_hint": "Check model and that Ollama serves " + bb})
+            data = gr.json()
+            reply = (data.get("message") or {}).get("content") or ""
+            tk = {"prompt": data.get("prompt_eval_count"), "completion": data.get("eval_count")}
+            warnings = []
+            if picked and "coder" in picked.lower():
+                warnings.append("coder weights are for writing code, not marketing copy - prefer qwen2.5:7b or qwen2.5:3b")
+            return _record_test(db, "llm", {"ok": True, "message": "Ollama connected - real reply generated",
+                                             "detail": (reply.strip() or "(empty reply)") + " | " + (picked or "none") + " | " + str(gen_latency) + " ms | " + str(len(names)) + " models",
+                                             "active_model": picked or "qwen2.5:3b", "reply": reply.strip(),
+                                             "latency_ms": gen_latency, "warnings": warnings})
         if prov.id == "anthropic":
             t0 = time.perf_counter()
             r = httpx.post(base + "/messages",

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.audit import record
 from app.core.state_machine import transition
 from app.llm.base import LLMSchemaError
-from app.llm.service import LLMService
+from app.llm.factory import resolve_llm
 from app.models.lead import Lead
 from app.models.profile import Profile
 from app.utils import new_uuid  # noqa: F401
@@ -33,7 +33,9 @@ PROFILE_SCHEMA = {
 
 
 def build_profile(db: Session, lead: Lead, llm: LLMService | None = None) -> Profile:
-    llm = llm or LLMService()
+    if llm is None:
+        resolved = resolve_llm(db)[0]
+        llm = resolved
     prompt = _profile_prompt(lead)
     raw_inputs = {
         "name": lead.name,
@@ -43,9 +45,12 @@ def build_profile(db: Session, lead: Lead, llm: LLMService | None = None) -> Pro
         "address": lead.address,
     }
     try:
+        from app.core.llm_calls import record_llm_call
         data = llm.generate(prompt, PROFILE_SCHEMA)
     except LLMSchemaError as exc:
-        # don't kill the lead; record failure and leave in enriched state
+        record_llm_call(db, purpose="profile", provider=getattr(llm, "provider_id", "mock"),
+                        model=getattr(llm, "model", None), status="error", error=str(exc),
+                        prompt=prompt, response="", run_id=getattr(llm, "run_id", None), lead_id=lead.id)
         record(db, action="profile_failed", lead_id=lead.id, detail={"error": str(exc)})
         raise
 
