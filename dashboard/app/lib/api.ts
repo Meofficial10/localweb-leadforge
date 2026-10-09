@@ -135,6 +135,14 @@ export const aiApi = {
   },
 };
 
+
+export interface DemoInfo {
+  site_id: string; lead_id: string; lead_name: string; slug: string;
+  template?: string | null; deploy_status?: string; created_at?: string | null; url?: string;
+}
+export const demosApi = {
+  list: () => get<DemoInfo[]>("/demos"),
+};
 export const queueApi = {
   list: () => get<Draft[]>("/queue"),
   approve: (id: string) => post<Draft>(`/queue/${id}/approve`),

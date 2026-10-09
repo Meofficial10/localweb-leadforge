@@ -36,7 +36,12 @@ class LocalDeploy(DeployAdapter):
         base.mkdir(parents=True, exist_ok=True)
         f = base / "index.html"
         f.write_text(html, encoding="utf-8")
-        return DeployResult(preview_url="file://" + str(f), html_path=str(f))
+        slug = site_name.replace(" ", "-").strip().lower()
+        if not slug:
+            slug = "lead-" + lead_id[:8]
+        base_url = getattr(settings, "demo_base_url", "http://127.0.0.1:8000")
+        url = base_url.rstrip("/") + "/demos/" + slug + "/"
+        return DeployResult(preview_url=url, html_path=str(f))
 
 
 class NetlifyDeploy(DeployAdapter):
