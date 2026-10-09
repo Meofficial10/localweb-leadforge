@@ -4,10 +4,11 @@ export const dynamic = "force-dynamic";
 
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Save, Loader2, Settings as SettingsIcon, Mail, ShieldCheck, Wallet, Megaphone } from "lucide-react";
-import { settingsApi, type AppSettings } from "@/app/lib/api";
+import { Save, Loader2, Settings as SettingsIcon, Mail, ShieldCheck, Wallet, Megaphone, CircleCheck, CircleX } from "lucide-react";
+import { settingsApi, integrationsApi, systemApi, type AppSettings } from "@/app/lib/api";
 import { PageHeader } from "@/app/components/shared/page-header";
 import { DemoDataBanner } from "@/app/components/demo-data-banner";
+import { Badge } from "@/app/components/ui/badge";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -55,6 +56,8 @@ function SectionCard({ icon, title, children }: { icon: React.ReactNode; title: 
 
 export default function SettingsPage() {
   const { data, isLoading, isError } = useQuery({ queryKey: ["settings"], queryFn: settingsApi.get });
+  const { data: integ } = useQuery({ queryKey: ["integrations"], queryFn: integrationsApi.list, staleTime: 15000 });
+  const { data: status } = useQuery({ queryKey: ["system-status"], queryFn: systemApi.status, staleTime: 15000 });
   const [form, setForm] = React.useState<AppSettings | null>(null);
   React.useEffect(() => { if (data) setForm(JSON.parse(JSON.stringify(data))); }, [data]);
   const qc = useQueryClient();
@@ -90,12 +93,28 @@ export default function SettingsPage() {
         title="Settings"
         description="Global defaults for outreach caps, warm-up ramp, budgets, and sender branding."
         actions={
-          <Button onClick={() => save.mutate()} disabled={save.isPending}>
-            {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Save changes
-          </Button>
+          <div className="flex items-center gap-2">
+            {status?.force_dry_run ? <Badge variant="secondary">Global dry-run active</Badge> : null}
+            <Button onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Save changes
+            </Button>
+          </div>
         }
       />
       <DemoDataBanner />
+
+      {integ && (<section aria-label="Integration health" className={"mb-4 rounded-xl border p-4 sm:p-5 " + (integ.health.ok ? "border-green-500/30 bg-green-500/5" : "border-amber-500/30 bg-amber-500/5")}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            {integ.health.ok ? <CircleCheck className="h-5 w-5 text-green-600 dark:text-green-400" aria-hidden="true" /> : <CircleX className="h-5 w-5 text-amber-600 dark:text-amber-400" aria-hidden="true" />}
+            <div>
+              <h2 className="text-base font-semibold">{integ.health.message}</h2>
+              <p className="text-sm text-muted-foreground">Real status from the configured integrations.</p>
+            </div>
+          </div>
+        </div>
+      </section>)}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-6">
           <SectionCard icon={<Mail className="h-4 w-4" />} title="Daily caps & send window">
@@ -176,11 +195,11 @@ export default function SettingsPage() {
             <p className="text-xs text-muted-foreground">Configured via the backend environment (.env). Rotate them there and restart the API.</p>
             <div>
               <Label>Auth tokens</Label>
-              <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{(form.tokens?.auth_tokens || []).join(", ") || "none"}</p>
+              <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{(form.tokens?.auth_tokens || []).join(", ") || "Needs setup"}</p>
             </div>
             <div>
               <Label>Admin tokens</Label>
-              <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{(form.tokens?.admin_tokens || []).join(", ") || "none"}</p>
+              <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{(form.tokens?.admin_tokens || []).join(", ") || "Needs setup"}</p>
             </div>
           </SectionCard>
         </div>

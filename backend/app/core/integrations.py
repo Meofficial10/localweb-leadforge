@@ -398,8 +398,8 @@ def status(db: Session, integ: IntegrationDef) -> dict:
                 "detail": "Integration is toggled off.", "last_checked": None}
     if not has_required_fields(db, integ):
         missing = missing_fields(db, integ)
-        return {"state": "not_configured", "label": "Not configured", "color": "gray",
-                "icon": "plug", "detail": "Missing: " + (", ".join(missing) or "configuration"),
+        return {"state": "not_configured", "label": "Needs setup", "color": "gray",
+                "icon": "plug", "detail": "Needs setup: " + (", ".join(missing) or "fill in provider configuration"),
                 "last_checked": None}
     last = get_setting(db, f"integration.{integ.id}.last_test", None)
     if not last:
@@ -630,7 +630,7 @@ def test_integration(db, integ_id, values=None):
 
     if not has_required_fields(db, integ) and not _transient_ok(db, integ, eff, prov):
         missing = missing_fields(db, integ)
-        return _record_test(db, integ_id, {"ok": False, "message": "Not configured",
+        return _record_test(db, integ_id, {"ok": False, "message": "Needs setup",
                                             "detail": "Missing: " + (", ".join(missing) or "configuration"),
                                             "fix_hint": "Enter the required fields, or test with current form values."})
 

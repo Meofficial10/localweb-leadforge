@@ -1,6 +1,7 @@
 """Central configuration. Values come from environment / .env file, with sane defaults."""
 from __future__ import annotations
 
+import secrets
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -18,13 +19,20 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
+    @staticmethod
+    def _random_token() -> str:
+        # Public repo: never ship a guessable default token. A blank AUTH_TOKENS
+        # generates a fresh random token per process so the console stays usable
+        # and the "Access tokens" settings card shows real values.
+        return "lf_" + secrets.token_urlsafe(24)
+
     app_name: str = "LeadForge"
     app_env: Literal["develop", "staging", "production"] = "develop"
     debug: bool = True
 
     secret_key: str = "dev-secret-change-me"
-    auth_tokens: str = "dev-token-123"  # comma-separated accepted API tokens
-    admin_tokens: str = "dev-token-123"
+    auth_tokens: str = ""  # comma-separated accepted API tokens (auto-random when blank)
+    admin_tokens: str = ""
 
     database_url: str = "sqlite:///data/leadforge.db"
     log_level: str = "INFO"
@@ -83,9 +91,17 @@ class Settings(BaseSettings):
     netlify_site_name_prefix: str = "leadforge-"
 
     def token_list(self) -> list[str]:
+        if not self.auth_tokens:
+            if not getattr(self, "_auth_token_cache", None):
+                self._auth_token_cache = self._random_token()
+            return [self._auth_token_cache]
         return [t.strip() for t in self.auth_tokens.split(",") if t.strip()]
 
     def admin_token_list(self) -> list[str]:
+        if not self.admin_tokens:
+            if not getattr(self, "_admin_token_cache", None):
+                self._admin_token_cache = self._random_token()
+            return [self._admin_token_cache]
         return [t.strip() for t in self.admin_tokens.split(",") if t.strip()]
 
 
