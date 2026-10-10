@@ -1,6 +1,8 @@
-const { test, expect } = require("@playwright/test");
+import { test, expect } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
-test("AI activity page shows real LLM calls", async ({ page }) => {
+
+test("AI activity page shows real LLM calls", async ({ page }: { page: Page }) => {
   await page.goto("http://127.0.0.1:3006/ai-activity", { waitUntil: "networkidle" });
   await page.waitForTimeout(1500);
   await expect(page.getByText("AI activity").first()).toBeVisible({ timeout: 10000 });

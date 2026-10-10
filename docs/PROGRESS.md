@@ -30,14 +30,22 @@ warning, Playground + custom providers (name, Base URL, API key, model, headers)
 'Needs setup' labels on placeholder senders, dry-run email is not 'Connected', onboarding checklist
 reflects a real lead source, per-process random access tokens.
 
-## Phase 5 — UI bugs (IN PROGRESS)
+## Phase 5 — UI bugs (DONE)
 - [x] Root cause: one-character bug = Step* components defined inside `CampaignWizard` → per-keystroke
-      remount → focus lost after first character (reproduced via qa-p5c/p5f/p5h.spec.ts).
-- [ ] Fix: hoist step components to module scope; add Playwright test typing 30 characters at once.
-- [ ] Constrain the location list inside the modal.
-- [ ] Default to Singapore (wizard already `country: "SG"` — verify + keep).
-- [ ] Use theme tokens for chart colors (overview-charts.tsx currently uses `var(--primary)` as SVG
-      presentation attributes, which don't evaluate in SVG — fix to real token colours).
+      remount → focus lost after the first character (reproduced via qa-p5c/p5f/p5h.spec.ts).
+- [x] Fix: hoisted StepBasics/Location/Business/Outreach/Review to module scope in
+      dashboard/app/campaigns/_components/campaign-wizard.tsx. New regression test
+      dashboard/e2e/p5-regression.spec.ts types 30 characters at once into name + description and asserts
+      focus is retained (all 31 e2e green; probes now show sameNode:true, focused after every keystroke).
+- [x] Location list constrained inside the modal (scroll container bounded + scrollable); Singapore is the
+      default country; Queenstown selectable — asserted in p5-regression.spec.ts.
+- [x] Theme tokens for chart colors: overview-charts.tsx now wraps charts in `text-primary` and uses
+      `currentColor` (resolves theme tokens in SVG) instead of literal `var(--primary)` presentation
+      attributes; funnel bars get a real themed fill. Probe: `svgs using var() as literal attr: []`.
+- [x] e2e type-check repaired: CJS `require` specs → ESM `import` (qa-ai-activity/drawer/demos),
+      removed invalid `page.on("popstate")` (qa-p5f), typed qa-sweep handler params. `tsc --noEmit` clean.
+- [x] qa-fixes mock Ollama extended with /api/chat so the 'Connected' probe passes (was 404ing once the
+      backend added a real generation step). Full suite: 31/31 e2e + 73 pytest green.
 
 ## Phase 6 — Real acceptance (NOT STARTED)
 Real Ollama + OSM run with no mocks; counts per stage, screenshots, demo HTML path, one drafted email,

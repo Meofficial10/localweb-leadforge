@@ -1,6 +1,8 @@
-const { test, expect } = require("@playwright/test");
+import { test, expect } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
-test("LLM drawer shows Playground and custom providers", async ({ page }) => {
+
+test("LLM drawer shows Playground and custom providers", async ({ page }: { page: Page }) => {
   await page.goto("http://127.0.0.1:3006/integrations", { waitUntil: "networkidle" });
   await page.waitForTimeout(1200);
   const llmCard = page.getByText("LLM", { exact: false }).first();

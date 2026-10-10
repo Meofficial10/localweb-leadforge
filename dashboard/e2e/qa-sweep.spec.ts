@@ -26,9 +26,9 @@ async function sweep(page: Page, label: string, tag: string, dest: string) {
   await page.setViewportSize({ width: tag === "desktop" ? 1440 : 390, height: tag === "desktop" ? 900 : 844 });
   const errors: string[] = [];
   const failed: string[] = [];
-  const onConsole = (m) => { if (m.type() === "error") errors.push("CONSOLE: " + m.text().slice(0, 300)); };
+  const onConsole = (m: { type: () => string; text: () => string }) => { if (m.type() === "error") errors.push("CONSOLE: " + m.text().slice(0, 300)); };
   page.on("console", onConsole);
-  const onResp = async (r) => { if (r.status() >= 400) failed.push("HTTP " + r.status() + " " + r.url().replace(BASE, "")); };
+  const onResp = async (r: { status: () => number; url: () => string }) => { if (r.status() >= 400) failed.push("HTTP " + r.status() + " " + r.url().replace(BASE, "")); };
   page.on("response", onResp);
   await page.goto(BASE + "/" + (label === "overview" ? "" : label) + (label === "overview" ? "" : ""), { waitUntil: "domcontentloaded", timeout: 45000 });
   await page.waitForTimeout(2500);

@@ -169,6 +169,82 @@ export function CampaignWizard({ open, onOpenChange, campaign, mode = "create", 
   };
 
 
+
+
+return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onOpenChange(false); }}>
+      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl" role="dialog" aria-modal="true" aria-label="Campaign wizard">
+        <div className="border-b border-border px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">{isEdit ? "Edit campaign" : "New campaign"}</h2>
+              <p className="text-sm text-muted-foreground">{STEPS[step]} — step {step + 1} of {totalSteps}</p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label="Close"><X className="h-4 w-4" /></Button>
+          </div>
+          <div className="mt-4 flex gap-1">
+            {STEPS.map((label, i) => (
+              <div key={label} className="flex flex-1 items-center gap-2">
+                <span className={cx("flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold", i < step ? "bg-primary text-primary-foreground" : i === step ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")} aria-hidden="true">
+                  {i < step ? <Check className="h-3 w-3" /> : i + 1}
+                </span>
+                <span className={cx("text-xs font-medium", i === step ? "text-foreground" : "text-muted-foreground")}>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {step === 0 && <StepBasics w={w} set={setW2} />}
+          {step === 1 && <StepLocation w={w} set={setW2} countries={countriesQ.data?.countries ?? []} states={statesArr} cities={citiesArr} loading={citiesQ.isLoading} />}
+          {step === 2 && <StepBusiness w={w} set={setW2} />}
+          {step === 3 && <StepOutreach w={w} set={setW2} forceDryRun={force_dry_run_q} />}
+          {step === 4 && <StepReview w={w} forceDryRun={force_dry_run_q} />}
+          {Object.keys(serverErrors).length > 0 && (
+            <div className="mt-3 space-y-1 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+              {Object.entries(serverErrors).map(([k, v]) => (v.errors || []).map((e, i) => <p key={k + i}>{e}</p>))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-2 border-t border-border px-6 py-4">
+          {step === 4 ? (
+            <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>Cancel</Button>
+          ) : (
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          )}
+          <div className="flex items-center gap-2">
+            {step > 0 && step < 4 && (
+              <Button variant="outline" size="sm" onClick={() => setStep((s) => Math.max(0, s - 1))}><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>
+            )}
+            {step < 3 && (
+              <Button size="sm" onClick={() => next(step)} data-testid="wiz-next">
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+            {step === 3 && (
+              <Button size="sm" onClick={() => next(3)} data-testid="wiz-review">
+                Review <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+            {step === 4 && (<>
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => setStep(3)}><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>
+              <Button size="sm" disabled={busy} onClick={() => submitWizard(false)} data-testid="wiz-create">
+                {busy && <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden="true" />} Create campaign
+              </Button>
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => submitWizard(true)} data-testid="wiz-create-run">
+                {busy && <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden="true" />} Create & start (dry-run)
+              </Button>
+            </>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default CampaignWizard;
+
 function StepBasics({ w, set }: { w: WizardState; set: (p: Partial<WizardState>) => void }) {
   const srcs: Array<[string, string]> = [["google", "Google Maps"], ["osm", "OpenStreetMap"], ["apify", "Apify scraper"]];
   return (
@@ -541,78 +617,3 @@ function StepReview({ w, forceDryRun }: { w: WizardState; forceDryRun: boolean }
     </div>
   );
 }
-
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onOpenChange(false); }}>
-      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-background shadow-xl" role="dialog" aria-modal="true" aria-label="Campaign wizard">
-        <div className="border-b border-border px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">{isEdit ? "Edit campaign" : "New campaign"}</h2>
-              <p className="text-sm text-muted-foreground">{STEPS[step]} — step {step + 1} of {totalSteps}</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label="Close"><X className="h-4 w-4" /></Button>
-          </div>
-          <div className="mt-4 flex gap-1">
-            {STEPS.map((label, i) => (
-              <div key={label} className="flex flex-1 items-center gap-2">
-                <span className={cx("flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold", i < step ? "bg-primary text-primary-foreground" : i === step ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")} aria-hidden="true">
-                  {i < step ? <Check className="h-3 w-3" /> : i + 1}
-                </span>
-                <span className={cx("text-xs font-medium", i === step ? "text-foreground" : "text-muted-foreground")}>{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {step === 0 && <StepBasics w={w} set={setW2} />}
-          {step === 1 && <StepLocation w={w} set={setW2} countries={countriesQ.data?.countries ?? []} states={statesArr} cities={citiesArr} loading={citiesQ.isLoading} />}
-          {step === 2 && <StepBusiness w={w} set={setW2} />}
-          {step === 3 && <StepOutreach w={w} set={setW2} forceDryRun={force_dry_run_q} />}
-          {step === 4 && <StepReview w={w} forceDryRun={force_dry_run_q} />}
-          {Object.keys(serverErrors).length > 0 && (
-            <div className="mt-3 space-y-1 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
-              {Object.entries(serverErrors).map(([k, v]) => (v.errors || []).map((e, i) => <p key={k + i}>{e}</p>))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between gap-2 border-t border-border px-6 py-4">
-          {step === 4 ? (
-            <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>Cancel</Button>
-          ) : (
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          )}
-          <div className="flex items-center gap-2">
-            {step > 0 && step < 4 && (
-              <Button variant="outline" size="sm" onClick={() => setStep((s) => Math.max(0, s - 1))}><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>
-            )}
-            {step < 3 && (
-              <Button size="sm" onClick={() => next(step)} data-testid="wiz-next">
-                Next <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            )}
-            {step === 3 && (
-              <Button size="sm" onClick={() => next(3)} data-testid="wiz-review">
-                Review <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            )}
-            {step === 4 && (<>
-              <Button variant="outline" size="sm" disabled={busy} onClick={() => setStep(3)}><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>
-              <Button size="sm" disabled={busy} onClick={() => submitWizard(false)} data-testid="wiz-create">
-                {busy && <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden="true" />} Create campaign
-              </Button>
-              <Button size="sm" variant="secondary" disabled={busy} onClick={() => submitWizard(true)} data-testid="wiz-create-run">
-                {busy && <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden="true" />} Create & start (dry-run)
-              </Button>
-            </>)}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default CampaignWizard;

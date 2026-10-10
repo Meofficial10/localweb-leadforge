@@ -5,7 +5,6 @@ test.use({ baseURL: "http://127.0.0.1:3006" });
 test("whole-doc remount probe", async ({ page }) => {
   const notes: string[] = [];
   page.on("framenavigated", (f) => notes.push("NAVIGATED: " + f.url()));
-  page.on("popstate", () => notes.push("popstate"));
   await page.goto("/campaigns", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "New campaign" }).first().click();
   await page.waitForSelector("#wiz-name");

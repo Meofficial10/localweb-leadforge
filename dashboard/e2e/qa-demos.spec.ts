@@ -1,6 +1,8 @@
-const { test, expect } = require("@playwright/test");
+import { test, expect } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
-test("Demo sites page lists demo sites", async ({ page }) => {
+
+test("Demo sites page lists demo sites", async ({ page }: { page: Page }) => {
   await page.goto("http://127.0.0.1:3006/demos", { waitUntil: "networkidle" });
   await page.waitForTimeout(1200);
   await expect(page.getByText("Demo sites").first()).toBeVisible({ timeout: 10000 });

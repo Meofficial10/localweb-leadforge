@@ -20,6 +20,17 @@ function startMockOllama() {
         }));
         return;
       }
+      // a real Ollama also answers /api/chat (the backend probes a generated reply too)
+      if (url.endsWith("/api/chat")) {
+        res.end(JSON.stringify({
+          model: "qwen2.5:7b",
+          message: { role: "assistant", content: "OK OK" },
+          done: true,
+          prompt_eval_count: 21,
+          eval_count: 5,
+        }));
+        return;
+      }
       res.statusCode = 404;
       res.end(JSON.stringify({ error: "not found" }));
     });
