@@ -71,3 +71,20 @@ dashboard/e2e/p6-acceptance.spec.ts.
   provider_message_id None (nothing sent). `force_dry_run: true` confirmed.
 - Health kept green: 74 pytest (was 73, added 1), dashboard tsc --noEmit exit 0, full e2e 1-pass on the
   new spec (screenshots ~34–131 KB each).
+
+## Phase 7 — production-quality outreach (IN PROGRESS)
+Workstream A — data hygiene (DONE)
+- .gitignore already covered evidence/, dashboard/qa-artifacts/, dashboard/e2e/p6-*.png,
+  backend/data/, *.db, .env; added explicit outbox/ + backend/data/outbox/. Confirmed:
+  0 tracked files under evidence/, no tracked p6-* images.
+- New pre-commit gate (alongside gitleaks): scripts/check_contact_data.py +
+  backend/app/core/data_hygiene.py. Fails when any staged text blob contains a
+  real-looking email/phone (allowlist: example.com/org/net + subdomains, *.test,
+  *.invalid, +65 0000 / 555-01xx fake numbers, YYYYMMDD model ids/dates) and when a
+  staged image is under /evidence or named p6-*. Hook reinstalled with python resolved.
+- Test: backend/tests/test_data_hygiene.py (24 cases: email/phone allowlist, adversarial
+  invented-service/price/phone/email blocks).
+- Audit scan: `git ls-files` (140 tracked) + scanner → 0 violations. No rewrite of
+  history needed; nothing real was ever committed. Tracked p4/p5 dashboard e2e PNGs are
+  UI screenshots of the console (not lead/evidence images) and stay tracked.
+- Health: pytest 98 · dashboard tsc exit 0.

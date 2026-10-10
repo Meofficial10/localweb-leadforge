@@ -33,15 +33,15 @@ def test_is_suppressed_phone(db):
 
 def test_add_is_idempotent(db):
     svc = _svc(db)
-    svc.add("email", "a@b.com")
-    svc.add("email", "a@b.com")
+    svc.add("email", "a@example.com")
+    svc.add("email", "a@example.com")
     rows = db.query(Suppression).all()
     assert len(rows) == 1
 
 
 def test_remove(db):
     svc = _svc(db)
-    svc.add("email", "a@b.com")
-    assert svc.is_suppressed(email="a@b.com")
-    assert svc.remove("email", "a@b.com")
-    assert not svc.is_suppressed(email="a@b.com")
+    svc.add("email", "a@example.com")
+    assert svc.is_suppressed(email="a@example.com")
+    assert svc.remove("email", "a@example.com")
+    assert not svc.is_suppressed(email="a@example.com")

@@ -53,9 +53,9 @@ def seed_demo_data() -> dict:
         s.flush()
 
         leads_data = [
-            ("Bluewater Salon", "salon", "Orchard Road", "salon@blueware.example.com", "+6590000001"),
-            ("Corner Cafe", "cafe", "Tanjong Pagar", "hi@cornercafe.example.com", "+6590000002"),
-            ("Swift Repairs", "auto repair", "Jurong East", "service@swiftrepairs.example.com", "+6590000003"),
+            ("Bluewater Salon", "salon", "Orchard Road", "salon@blueware.example.com", "+65 0000 0001"),
+            ("Corner Cafe", "cafe", "Tanjong Pagar", "hi@cornercafe.example.com", "+65 0000 0002"),
+            ("Swift Repairs", "auto repair", "Jurong East", "service@swiftrepairs.example.com", "+65 0000 0003"),
         ]
         made = 0
         for (name, cat, area, email, phone) in leads_data:
@@ -95,7 +95,7 @@ def seed_demo_data() -> dict:
         )
         s.add(ready)
         s.add(Contact(id=new_id(), lead_id=ready_id, kind="email", value="bookings@bluewaterspa.example.com", source_url="https://bluewaterspa.example/contact"))
-        s.add(Contact(id=new_id(), lead_id=ready_id, kind="phone", value="+6590000999", source_url="https://bluewaterspa.example/contact"))
+        s.add(Contact(id=new_id(), lead_id=ready_id, kind="phone", value="+65 0000 0999", source_url="https://bluewaterspa.example/contact"))
         s.add(DemoSite(id=new_id(), lead_id=ready_id, template="spa", preview_url="https://demo.leadforge.example/bluewater-spa", deploy_status="live", version=1))
         from app.jobs.send import prepare_email_message
         prepare_email_message(s, ready, camp)

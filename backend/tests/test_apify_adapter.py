@@ -27,10 +27,10 @@ DONE_JSON = {"id": "R_123", "status": "SUCCEEDED", "defaultDatasetId": "DS_9", "
 ITEMS = [
     {"title": "Bloom Salon", "placeId": "Pl001", "categoryName": "Beauty salon",
      "address": "1 Orchard Rd", "latitude": 1.3, "longitude": 103.8, "rating": 4.6,
-     "reviewsCount": 210, "phone": "+65 6000 0001", "website": "https://bloomsalon.example"},
+     "reviewsCount": 210, "phone": "+65 0000 0001", "website": "https://bloomsalon.example"},
     {"title": "Quiet Nail Bar", "placeId": "Pl002", "categoryName": "Nail salon",
      "address": "2 Orchard Rd", "latitude": 1.31, "longitude": 103.81, "rating": 4.4,
-     "reviewsCount": 88, "phone": "+65 6000 0002"},
+     "reviewsCount": 88, "phone": "+65 0000 0002"},
 ]
 
 

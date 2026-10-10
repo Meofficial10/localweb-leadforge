@@ -69,7 +69,7 @@ def test_kill_switch(client):
 
 
 def test_suppression_endpoint(client):
-    r = client.post("/suppression", json={"kind": "email", "value": "x@y.com", "reason": "test"})
+    r = client.post("/suppression", json={"kind": "email", "value": "x@example.com", "reason": "test"})
     assert r.status_code == 200
     r2 = client.get("/suppression")
-    assert any(item["value"] == "x@y.com" for item in r2.json())
+    assert any(item["value"] == "x@example.com" for item in r2.json())

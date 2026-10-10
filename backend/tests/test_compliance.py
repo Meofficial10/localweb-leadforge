@@ -44,12 +44,12 @@ def test_suppression_blocks_send(db):
 
 def test_voice_dnc_blocks_call(db):
     dnc = StubDNCCheck()
-    dnc.register("6591111111")
+    dnc.register("6500000001")
     sup = SuppressionService(db)
     c = ComplianceService(suppression=sup, dnc=dnc, force_dry_run=False,
                           call_hours="00:00-23:59", call_days="mon,tue,wed,thu,fri,sat,sun")
     camp = make_campaign(mode="live")
-    check = c.check(channel="voice", phone="+65 9111 1111", campaign=camp, db=db)
+    check = c.check(channel="voice", phone="+65 0000 0001", campaign=camp, db=db)
     assert not check.ok
     assert any("DNC" in r for r in check.reasons)
 

@@ -45,3 +45,7 @@ dashboard/qa-artifacts/
 dashboard/e2e/p6-*.png
 dashboard/qa-artifacts/
 evidence/
+
+# Email/file outbox (dry-run sink; must never be tracked)
+backend/data/outbox/
+outbox/

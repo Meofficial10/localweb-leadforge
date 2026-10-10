@@ -28,6 +28,20 @@ if [ -z "$BIN" ]; then
 fi
 printf 'located gitleaks: %s\n' "$BIN"
 
+# Locate python for the contact-data scanner (PATH first, then the backend venv)
+find_py() {
+  if command -v python >/dev/null 2>&1; then command -v python; return; fi
+  if command -v py >/dev/null 2>&1; then printf '%s' "py -3"; return; fi
+  for p in "backend/.venv/Scripts/python.exe" "backend/.venv/bin/python"; do
+    if [ -e "$p" ]; then printf '%s' "$p"; return; fi
+  done
+}
+PY="$(find_py)"
+if [ -z "$PY" ]; then
+  echo "python not found — contact-data pre-commit gate will be skipped (gitleaks still runs)" >&2
+fi
+printf 'located python:    %s\n' "$PY"
+
 mkdir -p "$HOOK_DIR"
 cat > "$TMP" <<'HOOK'
 #!/usr/bin/env sh
@@ -45,11 +59,28 @@ if ! "$BIN" git --pre-commit --staged --verbose $CFG; then
   echo "---------------------------------------------------------------" >&2
   exit 1
 fi
+
+if [ -n "__PYTHON_BIN__" ]; then
+  if ! __PYTHON_BIN__ scripts/check_contact_data.py; then
+    echo "----------------------------------------------------------------" >&2
+    echo "BLOCKED: staged changes contain real-looking contact data or" >&2
+    echo "staged evidence images. See the scanner report above; replace with" >&2
+    echo "allowlisted placeholders (example.com/example.org/*.test, +65 0000)." >&2
+    echo "----------------------------------------------------------------" >&2
+    exit 1
+  fi
+fi
 HOOK
 
 # Escaping: sed replacement string with | delimiter; escape & and |
 BIN_ESC="$(printf '%s' "$BIN" | sed 's/[&|]/\\&/g')"
 sed "s|__GITLEAKS_BIN__|$BIN_ESC|g" "$TMP" > "$HOOK_DIR/pre-commit"
+if [ -n "$PY" ]; then
+  PY_ESC="$(printf '%s' "$PY" | sed 's/[&|]/\\&/g')"
+  sed -i "s|__PYTHON_BIN__|$PY_ESC|g" "$HOOK_DIR/pre-commit"
+else
+  sed -i "s|__PYTHON_BIN__||g" "$HOOK_DIR/pre-commit"
+fi
 rm -f "$TMP"
 chmod +x "$HOOK_DIR/pre-commit" 2>/dev/null || true
 

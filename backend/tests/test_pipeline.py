@@ -92,7 +92,7 @@ def test_pipeline_through_demo_ready_and_draft(db):
     from app.utils import new_uuid
     lead = leads[0]
     db.add(Contact(id=new_uuid(), lead_id=lead.id, kind="email",
-                   value="owner@salon.com", source_url="https://facebook.com/search/top?q=Salon"))
+                   value="owner@example.com", source_url="https://facebook.com/search/top?q=Salon"))
     lead.contact_type = "email"
     lead.status = transition("discovered", "enriched")
     db.commit()
