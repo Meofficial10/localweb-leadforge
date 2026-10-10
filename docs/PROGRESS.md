@@ -84,7 +84,10 @@ Workstream A — data hygiene (DONE)
   staged image is under /evidence or named p6-*. Hook reinstalled with python resolved.
 - Test: backend/tests/test_data_hygiene.py (24 cases: email/phone allowlist, adversarial
   invented-service/price/phone/email blocks).
-- Audit scan: `git ls-files` (140 tracked) + scanner → 0 violations. No rewrite of
-  history needed; nothing real was ever committed. Tracked p4/p5 dashboard e2e PNGs are
-  UI screenshots of the console (not lead/evidence images) and stay tracked.
+- Audit scan: `git ls-files` (140 tracked) + scanner found REAL-looking fixture
+  data in committed files (reset_db seed phones, test emails/phones, .env.example
+  examplesend.com). No rewrite of history — these were replaced with allowlisted
+  fakes in the working tree (re-staged) and committed here. New scanner + test lock
+  the gate so nothing real gets in again. Tracked p4/p5 dashboard e2e PNGs are UI
+  screenshots of the console (not lead/evidence images) and stay tracked.
 - Health: pytest 98 · dashboard tsc exit 0.
