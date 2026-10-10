@@ -134,4 +134,6 @@ Workstream C — demo site quality (done)
   required sections, phone/WA/email contact buttons, placeholder identity,
   page weight, no external requests, plus endpoint tests for delete/build_log/
   theme switch/unknown theme/expiry). Health: pytest 127 (was 115).
+- Dashboard demo sites page (dashboard/app/demos/page.tsx): table (lead, theme select -> PATCH /demos/{id}/theme, status incl expired, hosting Local/Deployed, size kB, created) with actions Open / Regenerate / Build log (verified facts used) / Delete; loading+empty+error states.
+- Visual QA (Playwright, 8 themes x 390+1440px = 16/16 pass): no h-scroll, all sections + hero + inline SVG icons + CTAs, no unverified claims, no placeholder sender, page weight < 7 KB; screenshots only under evidence/ (gitignored). Repro: dashboard/qa-demos.cjs + evidence/demo-paths.tsv.
 
