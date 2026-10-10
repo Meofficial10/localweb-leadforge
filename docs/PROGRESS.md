@@ -111,4 +111,27 @@ Workstream B — grounded content (done)
   pass; verified grounding passes; unknown fact ids rejected; retry + feedback +
   fallback verified; validator deterministic.
 - Health: pytest 115 (was 101) · dashboard tsc unchanged.
+Workstream C — demo site quality (done)
+- Rewrote backend/app/build/templates.py: 8 category-aware theme packs
+  (clinical, salon, cafe, boutique, repair, education, fitness, generic), each
+  with its own palette, system-font stack (no webfonts), hero style and inline
+  SVG icon set. Single responsive page, noindex, no scripts/tracking/external
+  requests, < 100KB, skip-link + focus-visible + AA-ish contrast + reduced-motion.
+- Page structure per spec: sticky header w/ Call + WhatsApp when a phone exists,
+  hero (tagline + primary/secondary CTA), Services cards (only verified or
+  generic phrasing, else clearly-labelled "Sample content"), About, Why choose
+  us, Opening hours when known, Location + "Open in Google Maps" link, Contact
+  from verified contacts only, footer with "Demo preview by <sender>" identity
+  + Request removal link. No placeholder sender email on the page; placeholder
+  sender identity shows a generic notice instead (lead not marked live-ready).
+- backend/app/jobs/build_demo.py now reads verified facts (phone/email/
+  opening_hours) for the page, persists theme across regenerations, and is
+  idempotent on demo_ready. Theme override supported for per-lead switching.
+- Demo management endpoints (backend/app/api/routers/demos.py): POST
+  /{lead_id}/delete, GET /{lead_id}/build_log (facts used + expiry), PATCH
+  /{lead_id}/theme (switch + regenerate). demo_expired() = 30-day auto-expiry.
+- Tests: backend/tests/test_demo_theme.py — 12 tests (theme pack count/mapping,
+  required sections, phone/WA/email contact buttons, placeholder identity,
+  page weight, no external requests, plus endpoint tests for delete/build_log/
+  theme switch/unknown theme/expiry). Health: pytest 127 (was 115).
 

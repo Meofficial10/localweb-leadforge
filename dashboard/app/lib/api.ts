@@ -139,9 +139,21 @@ export const aiApi = {
 export interface DemoInfo {
   site_id: string; lead_id: string; lead_name: string; slug: string;
   template?: string | null; deploy_status?: string; created_at?: string | null; url?: string;
+  size_kb?: number | null;
+}
+export interface DemoTheme { key: string; name: string }
+export interface DemoBuildLog {
+  site_id: string; template?: string | null; version?: number; deploy_status?: string;
+  created_at?: string | null; preview_url?: string | null; html_path?: string | null;
+  facts: { field: string; value: string; source: string }[]; expired: boolean;
 }
 export const demosApi = {
   list: () => get<DemoInfo[]>("/demos"),
+  themes: () => get<DemoTheme[]>("/demos/themes"),
+  deleteForLead: (leadId: string) => post<{ deleted: number }>("/demos/" + leadId + "/delete"),
+  buildLog: (leadId: string) => get<DemoBuildLog>("/demos/" + leadId + "/build_log"),
+  setTheme: (leadId: string, template: string) =>
+    patch<{ template: string; preview_url?: string | null; regenerate: boolean }>("/demos/" + leadId + "/theme", { template }),
 };
 export const queueApi = {
   list: () => get<Draft[]>("/queue"),
