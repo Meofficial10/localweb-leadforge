@@ -36,6 +36,7 @@ def build_profile(db: Session, lead: Lead, llm: LLMService | None = None) -> Pro
     if llm is None:
         resolved = resolve_llm(db)[0]
         llm = resolved
+        llm.lead_id = lead.id  # attribute this generation to the lead in llm_calls
     prompt = _profile_prompt(lead)
     raw_inputs = {
         "name": lead.name,

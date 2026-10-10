@@ -37,7 +37,22 @@ class OllamaLLM(LLMProvider):
             raise LLMUnavailable(self.last_payload["error"])
         instruction = ""
         if schema is not None:
-            instruction = " Return ONLY a single JSON object matching this schema: " + json.dumps(schema)
+            # Show a plain-JSON example of the expected shape instead of the schema envelope:
+            # small local models tend to echo a JSON-Schema object ({type/required/properties})
+            # rather than the data itself when handed the raw schema.
+            example = {}
+            props = (schema or {}).get("properties") or {}
+            for k, v in props.items():
+                _t = (v or {}).get("type")
+                if _t == "array":
+                    example[k] = ["value"]
+                elif _t == "object":
+                    _sub = (v.get("properties") or {})
+                    example[k] = {_sk: ("value" if (_sv or {}).get("type") != "array" else ["value"]) for _sk, _sv in _sub.items()}
+                else:
+                    example[k] = "value"
+            instruction = (" Return ONLY a single JSON object that matches exactly this shape "
+                           "(keys and value kinds, fill in real content, no markdown): " + json.dumps(example))
         messages = [{"role": "user", "content": prompt + instruction}]
         body = {"model": self.model, "messages": messages, "stream": False}
         if schema is not None:
@@ -69,6 +84,10 @@ class OllamaLLM(LLMProvider):
                     if cleaned.startswith("```"):
                         cleaned = cleaned.split("```", 2)[1].lstrip("json").strip()
                     obj = json.loads(cleaned)
+                if isinstance(obj, dict) and "properties" in obj and "summary" not in obj:
+                    _inner = obj.get("properties")
+                    if isinstance(_inner, dict) and _inner:
+                        obj = _inner
             else:
                 obj = {"content": text}
             self.last_payload["ok"] = True

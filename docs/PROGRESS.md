@@ -47,6 +47,27 @@ reflects a real lead source, per-process random access tokens.
 - [x] qa-fixes mock Ollama extended with /api/chat so the 'Connected' probe passes (was 404ing once the
       backend added a real generation step). Full suite: 31/31 e2e + 73 pytest green.
 
-## Phase 6 — Real acceptance (NOT STARTED)
-Real Ollama + OSM run with no mocks; counts per stage, screenshots, demo HTML path, one drafted email,
-proof nothing was sent.
+## Phase 6 — Real acceptance (DONE)
+Live, no-mock run on a real Singapore/Queenstown/dentist campaign (P6-Real-Queenstown-Dentist) with
+real Ollama (qwen2.5:3b) + real OSM/Overpass. Evidence captured in dashboard/e2e/p6-*.png and the new
+dashboard/e2e/p6-acceptance.spec.ts.
+
+- Run view per-stage counts (latest run record 901baa03): discover 11, enrich 1, profile 1, demo 1,
+  draft 1, send 0 — every stage executed live; discovery found 15 places, 11 without a website,
+  11 inserted (per-source detail: 3 with phone, 1 with email). First trigger hit a transient Overpass
+  mirror failure and the run/UI reported it honestly (found 0 + plain-language reason) — re-ran clean, no mocks.
+- llm_calls transparency fix (found during acceptance): modify `resolve_llm` to pass `db` (and set
+  `purpose="profile"`) into `LLMService` so every pipeline generation is recorded; `build_profile` now
+  tags `llm.lead_id` so the call links to the lead. AI activity page now shows real profile calls with
+  provider `ollama`, model qwen2.5:3b, latency ms, prompt + response, ok/error status. New test
+  `test_resolve_llm_records_generation_to_llm_calls` locks this in.
+- Real Ollama prompt fix: local qwen was echoing the JSON-Schema envelope ({type/required/properties})
+  instead of plain profile JSON. `OllamaLLM.generate` now shows a plain-JSON example with real content
+  shapes + defensively unwraps schema-envelope responses. Profile, demo and draft now succeed on first try.
+- Demo: real OSM lead "Dover Dental Surgery" → generated HTML under
+  backend/data/demo_sites/<lead_id>/index.html, served at the stable URL
+  http://127.0.0.1:8000/demos/dover-dental-surgery-91293283/ (status: live, theme "Comfort and Excellence").
+- Drafted email: subject "Quick idea for Dover Dental Surgery" — status draft, sent_at None,
+  provider_message_id None (nothing sent). `force_dry_run: true` confirmed.
+- Health kept green: 74 pytest (was 73, added 1), dashboard tsc --noEmit exit 0, full e2e 1-pass on the
+  new spec (screenshots ~34–131 KB each).

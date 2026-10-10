@@ -51,6 +51,33 @@ def test_discovery_filters_website_and_dedupes(db):
     assert all(l.has_website is False for l in db.query(Lead).all())
 
 
+
+def test_resolve_llm_records_generation_to_llm_calls(db, monkeypatch):
+    """P2 transparency: pipeline profile generation must land in llm_calls.
+    resolve_llm() passes the session through so record_llm_call writes a row."""
+    from app.llm.factory import resolve_llm
+    from app.llm.ollama import OllamaLLM
+    from app.models.llm_call import LLMCall
+
+    svc, provider, model = resolve_llm(db)
+    assert svc.db is db, "resolve_llm must wire the session into LLMService"
+    assert provider == "ollama"
+    assert svc.provider_id == "ollama"
+
+    # drive a generation through the service: even a fake underling is recorded
+    class FakeInner:
+        last_payload = {"response": "hi", "tokens": {}}
+        def generate(self, prompt, schema=None):
+            return {"summary": "S", "services": ["x"], "tone": "t",
+                    "selling_points": ["y"], "brand": {"colors": ["#000"], "theme": "T"}}
+    svc2 = resolve_llm(db)[0]
+    svc2._provider = FakeInner()
+    out = svc2.generate("prompt", tests_schema := None or None)
+    # record happens in finally regardless of schema validation (schema None path)
+    calls = db.query(LLMCall).filter(LLMCall.purpose == "profile").all()
+    assert any(c.purpose == "profile" for c in calls), "expected a recorded profile llm call"
+    assert any(c.provider == "ollama" for c in calls)
+
 def test_pipeline_through_demo_ready_and_draft(db):
     camp = Campaign(id="c2", name="T2", city="Singapore", categories=["salon"],
                     mode="dry_run", daily_email_cap=20, daily_call_cap=10)

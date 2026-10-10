@@ -41,3 +41,7 @@ test-results/
 
 # QA screenshot artifacts (local only)
 dashboard/qa-artifacts/
+
+dashboard/e2e/p6-*.png
+dashboard/qa-artifacts/
+evidence/

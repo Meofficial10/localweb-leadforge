@@ -20,5 +20,5 @@ def resolve_llm(db=None):
         inner = OllamaLLM(base_url=base_url, model=model)
     else:
         inner = MockLLM()
-    svc = LLMService(provider=inner, model=model, provider_id=provider)
+    svc = LLMService(provider=inner, model=model, provider_id=provider, db=db, purpose="profile")
     return svc, provider, model
