@@ -35,3 +35,4 @@ class Lead(Base, TimestampMixin):
     demo_sites = relationship("DemoSite", back_populates="lead", cascade="all, delete-orphan")
     messages = relationship("Message", back_populates="lead", cascade="all, delete-orphan")
     calls = relationship("Call", back_populates="lead", cascade="all, delete-orphan")
+    verified_facts = relationship("VerifiedFact", back_populates="lead", cascade="all, delete-orphan")

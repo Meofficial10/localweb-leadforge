@@ -91,3 +91,24 @@ Workstream A — data hygiene (DONE)
   the gate so nothing real gets in again. Tracked p4/p5 dashboard e2e PNGs are UI
   screenshots of the console (not lead/evidence images) and stay tracked.
 - Health: pytest 98 · dashboard tsc exit 0.
+Workstream B — grounded content (done)
+- VerifiedFact model (backend/app/models/verified_fact.py) + collection in
+  backend/app/core/facts.py. Only discovery/enrichment/human-sourced facts become
+  verified facts; generated copy is never written back as a fact. Each fact has
+  field, value, source, timestamp. Table auto-created by Base.metadata.
+- LLM prompts receive ONLY verified facts (jobs/profile.py); services and
+  selling_points must be JSON tagged {text, kind, source_fact_id}. kind=verified
+  requires a real fact id and matching value; kind=generic is restricted to a
+  neutral allowlist (backend/app/core/claims.py: retry up to 2 with violations
+  listed, then deterministic fallback with no unverified claims).
+- Deterministic claim validator (backend/app/core/claim_validator.py) rejects
+  invented services, prices, years, awards, certifications, payments, equipment,
+  staff, testimonials, rankings, patient counts, guarantees and superlatives
+  unless grounded in a verified fact. Same validator reused for email drafts and
+  call scripts (Workstream H wiring).
+- Tests: backend/tests/test_grounded_content.py — 14 adversarial cases: invented
+  services/awards/payments/testimonials/superlatives all blocked; generic phrases
+  pass; verified grounding passes; unknown fact ids rejected; retry + feedback +
+  fallback verified; validator deterministic.
+- Health: pytest 115 (was 101) · dashboard tsc unchanged.
+

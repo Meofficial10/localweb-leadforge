@@ -14,9 +14,11 @@ from app.models.integration_secret import IntegrationSecret, DemoProject
 from app.models.apify_run import ApifyRun
 from app.models.run import Run, RunEvent
 from app.models.llm_call import LLMCall
+from app.models.verified_fact import VerifiedFact
 
 __all__ = [
     "Base", "Campaign", "Lead", "Contact", "Profile", "DemoSite",
     "Message", "Call", "Suppression", "Job", "AuditLog", "SettingKV",
     "IntegrationSecret", "DemoProject", "ApifyRun",
+    "VerifiedFact",
 ]
