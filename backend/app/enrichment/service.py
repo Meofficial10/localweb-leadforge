@@ -20,16 +20,27 @@ _NAME_SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 
 def build_candidate_urls(lead: Lead) -> list[str]:
-    """Public search/directory URLs derived from the business name only."""
+    """Public search/directory URLs derived from the business name + OSM social tags."""
     name = (lead.name or "").strip()
     if not name:
         return []
     slug = _NAME_SLUG_RE.sub("", name.lower())
-    return [
+    urls = [
         "https://www.facebook.com/search/top?q={name}".format(name=name.replace(" ", "%20")),
         "https://www.instagram.com/{slug}/".format(slug=slug),
         "https://www.google.com/search?q={q}".format(q=name.replace(" ", "+") + "+contact"),
     ]
+    # public social pages tagged by the listing, when the lead carries raw tags
+    # (e.g. future OSM raw tags). Defensive for leads without a raw column.
+    raw = getattr(lead, "raw", None)
+    if isinstance(raw, dict):
+        tags = raw.get("tags") if isinstance(raw.get("tags"), dict) else raw
+        if isinstance(tags, dict):
+            for kk in ("contact:facebook", "contact:instagram", "contact:twitter",
+                       "facebook", "instagram", "twitter"):
+                if tags.get(kk):
+                    urls.append(tags[kk])
+    return urls
 
 
 class EnrichmentService:
@@ -37,9 +48,19 @@ class EnrichmentService:
         self.fetcher = fetcher or PageFetcher()
 
     def enrich(self, db: Session, lead: Lead) -> dict:
-        """Contact a lead. Returns classification and counts."""
+        """Contact a lead. Returns classification, counts and sources tried."""
         if lead.contacts:
-            return {"classification": lead.contact_type or "none", "already": True}
+            # Contacts were persisted at discovery time (e.g. OSM/Google).
+            # Mark lead enriched so it advances through the pipeline.
+            has_email = any(c.kind == "email" for c in lead.contacts)
+            has_phone = any(c.kind == "phone" for c in lead.contacts)
+            cls = ("both" if (has_email and has_phone) else "email" if has_email
+                   else "phone" if has_phone else lead.contact_type or "none")
+            lead.contact_type = cls
+            if lead.status == "discovered":
+                lead.status = transition("discovered", "enriched") if (has_email or has_phone) else "no_contact"
+                db.commit()
+            return {"classification": cls, "already": True}
 
         emails: list[str] = []
         phones: list[str] = []
@@ -63,7 +84,8 @@ class EnrichmentService:
         if lead.raw_website:
             absorb(self.fetcher.fetch(lead.raw_website), lead.raw_website)
 
-        for url in build_candidate_urls(lead):
+        candidate_urls = build_candidate_urls(lead)
+        for url in candidate_urls:
             absorb(self.fetcher.fetch(url), url)
 
         for e in dict.fromkeys(emails):
@@ -78,8 +100,15 @@ class EnrichmentService:
         cls = "both" if (has_email and has_phone) else ("email" if has_email else ("phone" if has_phone else "none"))
 
         lead.contact_type = cls
-        lead.status = transition(lead.status, "enriched" if (has_email or has_phone) else "no_contact")
+        if has_email or has_phone:
+            lead.status = transition(lead.status, "enriched")
+        else:
+            lead.status = transition(lead.status, "no_contact")
+            lead.no_contact_reason = "no email or phone found on any public page"
+            lead.enrichment_sources = candidate_urls
         db.commit()
         record(db, action="enrich_lead", lead_id=lead.id, detail={
-            "classification": cls, "emails": len(emails), "phones": len(phones)})
-        return {"emails": len(emails), "phones": len(phones), "classification": cls}
+            "classification": cls, "emails": len(emails), "phones": len(phones),
+            "no_contact_reason": lead.no_contact_reason, "sources_tried": candidate_urls})
+        return {"emails": len(emails), "phones": len(phones), "classification": cls,
+                "sources_tried": candidate_urls}

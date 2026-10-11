@@ -4,6 +4,10 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy.dialects.sqlite import JSON as _SQLiteJSON
+from sqlalchemy.types import JSON
+
+JSONType = JSON().with_variant(_SQLiteJSON(), "sqlite")
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, GUID, TimestampMixin
@@ -29,6 +33,8 @@ class Lead(Base, TimestampMixin):
     contact_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="discovered", index=True)
     enriched_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    no_contact_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    enrichment_sources: Mapped[list | None] = mapped_column(JSONType, nullable=True)
 
     contacts = relationship("Contact", back_populates="lead", cascade="all, delete-orphan")
     profile = relationship("Profile", back_populates="lead", uselist=False, cascade="all, delete-orphan")

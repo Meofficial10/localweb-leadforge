@@ -137,3 +137,31 @@ Workstream C — demo site quality (done)
 - Dashboard demo sites page (dashboard/app/demos/page.tsx): table (lead, theme select -> PATCH /demos/{id}/theme, status incl expired, hosting Local/Deployed, size kB, created) with actions Open / Regenerate / Build log (verified facts used) / Delete; loading+empty+error states.
 - Visual QA (Playwright, 8 themes x 390+1440px = 16/16 pass): no h-scroll, all sections + hero + inline SVG icons + CTAs, no unverified claims, no placeholder sender, page weight < 7 KB; screenshots only under evidence/ (gitignored). Repro: dashboard/qa-demos.cjs + evidence/demo-paths.tsv.
 
+
+## Phase 7-D: production-ready outreach - pipeline coverage, per-contact-type drafts, enrich + reasons
+
+Fix for "only 1 of 11 leads processed": the pipeline advanced every lead by exactly one stage
+per run, and enrichment discarded contact data already present at discovery (OSM/Google contact:*/
+phone/email) so most leads stalled. Changes:
+- Discovery now persists contacts + contact_type at insert time (backend/app/jobs/discovery.py):
+  OSM phone/email become Contact rows with a provenance source_url (OpenStreetMap element link /
+  maps.google.com cid), E.164-normalized (normalize_phone) so no-website leads with contact are
+  ready for profile -> demo -> draft in the SAME run, not after several runs.
+- Enrichment (backend/app/enrichment/service.py) no longer returns early for leads that already have
+  contacts: it classifies them and transitions discovered -> enriched so they advance. Candidate URLs
+  now include OSM social tags (contact:facebook/instagram/twitter). No-contact leads transition via
+  state machine discovered -> no_contact (new legal transition in app/core/state_machine.py) with
+  no_contact_reason + enrichment_sources (URLs tried) persisted on the lead.
+- Pipeline (backend/app/jobs/pipeline.py): per-lead loop now advances each lead through ALL stages
+  in one run (discover -> enrich -> profile -> demo -> draft). Drafts are contact-type aware:
+  email -> email draft (existing prepare_email_message); phone-only -> WhatsApp/text short draft +
+  call-script draft, both with AI disclosure + DNC status; no-contact -> terminal no_contact with
+  reason + sources tried. Run summary adds no_contact + queued_call counts and per-reason tally
+  (summary.reasons) on top of per-stage counts.
+- Jobs/enrichment.py returns per-reason no_contact breakdown for the run summary.
+- Migration d1e2f3a4b5c6 adds leads.no_contact_reason + leads.enrichment_sources (nullable).
+- Tests: backend/tests/test_pipeline_coverage.py - 6 tests (discovery persists contacts & type,
+  enrichment transitions pre-seeded contacts & records reason/sources, one-run full cascade, phone
+  draft AI+DNC disclosure, per-stage+per-reason summary). Also realigned test_placeholder_sender_identity
+  in test_demo_theme.py to assert the actual placeholder behavior (example sender not shown as identity).
+  Health: pytest 133 (was 127). Dashboard tsc 0. import app.main OK.

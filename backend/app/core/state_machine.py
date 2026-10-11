@@ -30,7 +30,7 @@ class StateTransitionError(Exception):
 
 # Allowed transitions
 TRANSITIONS: dict[str, set[str]] = {
-    "discovered": {"enriched", "rejected"},
+    "discovered": {"enriched", "no_contact", "rejected"},
     "enriched": {"profiled", "no_contact"},
     "profiled": {"demo_ready"},
     "demo_ready": {"queued_email", "queued_call", "rejected"},

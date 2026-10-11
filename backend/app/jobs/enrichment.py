@@ -14,7 +14,7 @@ def run_enrichment_for_campaign(db: Session, campaign: Campaign, service: Enrich
     leads = db.execute(
         select(Lead).where(Lead.campaign_id == campaign.id, Lead.status == "discovered")
     ).scalars().all()
-    results = {"enriched": 0, "no_contact": 0, "failed": 0}
+    results = {"enriched": 0, "no_contact": 0, "failed": 0, "reasons": {}}
     for lead in leads:
         try:
             r = service.enrich(db, lead)
@@ -22,6 +22,8 @@ def run_enrichment_for_campaign(db: Session, campaign: Campaign, service: Enrich
                 results["enriched"] += 1
             else:
                 results["no_contact"] += 1
+                reason = (lead.no_contact_reason or "none") if hasattr(lead, "no_contact_reason") else "none"
+                results["reasons"][reason] = results["reasons"].get(reason, 0) + 1
         except Exception:  # noqa: BLE001
             results["failed"] += 1
     return results

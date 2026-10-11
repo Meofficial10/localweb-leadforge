@@ -5,13 +5,28 @@ from sqlalchemy.orm import Session
 
 from app.core.audit import record
 from app.models.campaign import Campaign
+from app.models.contact import Contact
 from app.models.lead import Lead
+from app.utils import normalize_phone
 from app.sources.base import SourceAdapter
 from app.sources.overpass import OverpassAdapter
 from app.sources.places import GooglePlacesAdapter
 from app.utils import new_uuid
 
 DISCOVER_STAGE = "discover"
+
+
+def _source_url(place: Place) -> str:
+    """A public URL identifying where the contact came from, per spec.
+    OSM elements have a canonical permalink; Google has a lon/lat-free
+    maps link via cid-like place_id. Keeps provenance without real
+    contacting data ever leaving the box."""
+    pid = (place.source_place_id or '').strip()
+    if place.source == 'osm' and pid:
+        return 'https://www.openstreetmap.org/' + pid
+    if place.source == 'places' and pid:
+        return 'https://maps.google.com/?cid=' + str(pid)
+    return f'{place.source}://{pid}'
 
 
 def _adapters_for(db: Session, campaign: Campaign):
@@ -99,9 +114,24 @@ def discover_campaign(db: Session, campaign: Campaign, adapters=None, radius_m: 
                 rating=place.rating,
                 review_count=place.review_count,
                 has_website=False,
+                raw_website=place.website,
                 status="discovered",
             )
             db.add(lead)
+            db.flush()  # get lead.id for contacts
+            kind_value = []
+            if place.phone:
+                kind_value.append(("phone", normalize_phone(place.phone)))
+            if place.email:
+                kind_value.append(("email", place.email.strip().lower()))
+            for kind, value in kind_value:
+                db.add(Contact(lead_id=lead.id, kind=kind, value=value,
+                               source_url=_source_url(place), verified=False))
+            lead.contact_type = (
+                'both' if any(k == 'email' for k, _ in kind_value) and any(k == 'phone' for k, _ in kind_value)
+                else 'email' if any(k == 'email' for k, _ in kind_value)
+                else 'phone' if any(k == 'phone' for k, _ in kind_value) else None
+            )
             results["inserted"] += 1
             if len(samples) < 5:
                 samples.append({

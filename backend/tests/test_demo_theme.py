@@ -81,7 +81,9 @@ def test_phone_buttons_and_no_unverified_claims():
 
 def test_placeholder_sender_identity():
     html = render_demo_site(_profile(), _biz(sender_hidden=True), sender="sender@example.net")
-    assert "samples.net" in html or "Demo preview by" in html
+    # an obviously-placeholder sender must not be shown as the page's real identity
+    assert "sender@example.net" not in html
+    assert "identity not set yet" in html or "Demo preview by" in html
 
 
 def test_page_under_100kb():
