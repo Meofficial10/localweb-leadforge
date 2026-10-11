@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.audit import record
+from app.core.facts import collect_verified_facts
 from app.core.compliance import ComplianceService
 from app.core.state_machine import transition
 from app.core.suppression import SuppressionService
@@ -31,7 +32,10 @@ def prepare_email_message(db: Session, lead: Lead, campaign: Campaign | None,
     profile = lead.profile
     site = lead.demo_sites[-1] if lead.demo_sites else None
     demo_url = demo_url or (site.preview_url if site else "https://example.com/demo")
-    draft: DraftResult = draft_email(lead, profile, demo_url)
+    facts_rows = collect_verified_facts(db, lead)
+    facts_dicts = [{"id": r.id, "field": r.field, "value": r.value,
+                      "source": r.source, "is_null_fact": r.is_null_fact} for r in facts_rows]
+    draft: DraftResult = draft_email(lead, profile, demo_url, facts=facts_dicts)
     msg = Message(
         id=new_uuid(),
         lead_id=lead.id,

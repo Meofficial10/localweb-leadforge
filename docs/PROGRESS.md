@@ -165,3 +165,27 @@ phone/email) so most leads stalled. Changes:
   draft AI+DNC disclosure, per-stage+per-reason summary). Also realigned test_placeholder_sender_identity
   in test_demo_theme.py to assert the actual placeholder behavior (example sender not shown as identity).
   Health: pytest 133 (was 127). Dashboard tsc 0. import app.main OK.
+
+## Phase 7-E: email draft quality - grounds drafts in verified facts via shared validator
+
+Assumption: E-I scope inferred from the implementation plan (M5 email outreach, M7 voice, M8
+hardening) + the Workstream B note that the claim validator is 'reused for email drafts and call
+scripts'. E = email draft grounding; F-G = queue/send + follow-up hardening; H = voice wiring.
+
+- backend/app/outreach/email/draft.py: validate_facts() now runs every claim-bearing sentence
+  of the email body through the Workstream B deterministic validator (claim_validator.
+  validate_claims) against the lead's verified facts. Outreach mechanics (demo page, reply, stop)
+  are stripped before vetting so they never count as business claims. A draft that references an
+  invented service/price/award/year/testimonial/superlative raises FactValidationError and is
+  never queued. draft_email accepts a facts parameter (backward compatible).
+- backend/app/jobs/send.py prepare_email_message() collects the lead's verified facts
+  (collect_verified_facts) and passes them into draft_email, so every email draft is grounded.
+- backend/app/core/claim_validator.py: broadened price pattern to catch plurals (price/prices) and
+  added implants to the equipment pattern (dental 'dental implants' is now an unverifiable claim
+  unless a verified fact says so).
+- Workstream B tests still green (14/14); email drafts comply with the guided style (<120 words,
+  business first line, one link, opt-out line).
+- Tests: backend/tests/test_draft_grounding.py - 4 tests (grounded template passes word/opt-out
+  checks + stays under 120 words; invented superlative/patient-count blocked; clean mechanics
+  pass; monkeypatched template injecting 'dental implants at affordable prices' is rejected).
+  Health: pytest 137 (was 133).

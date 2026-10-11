@@ -25,11 +25,11 @@ import re
 # Each entry: (reason, compiled regex). If the pattern matches and the matched
 # phrase is not grounded in a verified fact value, the claim is a violation.
 CLAIM_FORBIDDEN_PATTERNS: list[tuple[str, re.Pattern]] = [
-    ("prices", re.compile(r"(?i)\b(?:price|pricing|fee|fees|cost|charges?)\b|\$\s?\d|\b\d+\s*(?:sgd|usd|rm)\b")),
+    ("prices", re.compile(r"(?i)\b(?:price|prices|pricing|fee|fees|cost|charges?)\b|\$\s?\d|\b\d+\s*(?:sgd|usd|rm)\b")),
     ("years_in_business", re.compile(r"(?i)\b(?:since\s+)?(?:19\d{2}|20\d{2})\b|\b\d+\s*(?:years|yrs)\s+(?:of\s+)?(?:experience|service|in business)\b")),
     ("awards", re.compile(r"(?i)\b(award|winner|accredited|certified|certification|best in|#1|ranked|top rated)\b")),
     ("payments", re.compile(r"(?i)\b(paynow|visa|mastercard|amex|nets|fpx|payment|invoice|reimburse)\b")),
-    ("equipment", re.compile(r"(?i)\b(lasers?|mri\w*|ct scanners?|x-rays?|ultrasound|hydrojet|cnc machines?)\b")),
+    ("equipment", re.compile(r"(?i)\b(lasers?|mri\w*|ct scanners?|x-rays?|ultrasound|hydrojet|cnc machines?|implants?)\b")),
     ("staff", re.compile(r"(?i)(dr.|specialist|therapist|consultant|hnv|our team)|[A-Z][a-z]+s[A-Z][a-z]+")),
     ("testimonials", re.compile(r"(?i)\b(testimonial|review|rating|fame|popular|trusted by|recommended by)\b|\b\d+(\.[0-9])?\s*(out of 5)?\s*stars?\b")),
     ("patient_counts", re.compile(r"(?i)\b\d+\s*(patients|clients|customers|members|people)\b")),
