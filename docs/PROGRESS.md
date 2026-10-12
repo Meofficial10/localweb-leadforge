@@ -246,3 +246,18 @@ scripts'. E = email draft grounding; F-G = queue/send + follow-up hardening; H =
   DNC registry blocks a registered number with zero Call rows; dry-run pins mock even
   with a caller-passed real adapter; full live path records the Call row with
   ai_disclosed + transitions to contacted). pytest 155 (was 150).
+
+## Phase 7-I: final acceptance run
+
+- pytest 155 passed, 0 failed (includes E/F/G/H suites).
+- Dashboard TypeScript: --noEmit clean (0 diagnostics).
+- `import app.main` OK; compliance/dry-run defaults verified intact:
+  force_dry_run=True, default_mode=dry_run, email_provider=file, voice_provider=mock,
+  voice_dry_run=True, llm_provider=mock, dnc_provider=none (fail-closed).
+- Gate scan (check_contact_data) clean on every workstream commit (E/F/G/H/I).
+- Phase 7 complete: A progress note - B grounded content/claim validator - C demo sites
+  + Demos dashboard - D outreach pipeline (per-contact drafts, AI disclosure + DNC,
+  no_contact states, one-run cascade) - E email draft quality (facts + claim validator)
+  - F queue/outbox dry-run send hardening - G follow-up + reply/bounce tracking -
+  H voice call-script + DNC adapter wiring - I acceptance. All sends remain dry-run;
+  no live sending is enabled.
