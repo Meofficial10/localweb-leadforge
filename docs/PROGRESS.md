@@ -189,3 +189,23 @@ scripts'. E = email draft grounding; F-G = queue/send + follow-up hardening; H =
   checks + stays under 120 words; invented superlative/patient-count blocked; clean mechanics
   pass; monkeypatched template injecting 'dental implants at affordable prices' is rejected).
   Health: pytest 137 (was 133).
+
+## Phase 7-F: queue/outbox dry-run send path hardening (M5 send + F scope)
+
+- backend/app/jobs/send.py send_message(): the compliance gate is always checked and
+  fails closed (suppression / rate caps / DNC keep blocking). The Workstream F
+  hardening: when dry-run is active (global force_dry_run or campaign mode dry_run)
+  the 'channel in dry-run mode' reason is not fatal - the send routes to the local
+  file outbox (FileSender), the safe sink that cannot reach a recipient - and any
+  caller-supplied real provider adapter is FORCIBLY replaced by FileSender so a
+  stray SMTP/Brevo instance can never fire during a dry-run queue. Live sends still
+  require an explicit adapter and a live-shape compliance pass.
+- backend/app/api/routers/queue.py: added GET /queue/outbox - lists messages with
+  status=sent and the provider sink id (file:...) so the dashboard can show what a
+  dry-run queue would have delivered, plus POST /queue/{message_id}/send - the
+  hardened dry-run send path for approved/queued email drafts (409 on drafts).
+- Tests: backend/tests/test_send_path.py - 7 tests (approved dry-run goes to file
+  outbox and marks sent + transitions to contacted; draft/skipped not sendable;
+  suppression blocks; a caller SMTP adapter is never fired in dry-run; live mode
+  uses the passed sender; outbox listing surfaces sent records; send endpoint
+  rejects unapproved). pytest 144 (was 137).

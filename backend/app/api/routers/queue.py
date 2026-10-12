@@ -140,3 +140,55 @@ def bulk_approve(payload: BulkApprove, db: Session = Depends(get_session)):
     db.commit()
     record(db, action='bulk_approve', detail={'count': updated})
     return {'approved': updated}
+
+@router.get("/outbox")
+def list_outbox(db: Session = Depends(get_session)):
+    """Sent messages that landed in the dry-run outbox (status=sent).
+
+    Dry-run sends never leave the box; this surfaces what WOULD have gone out,
+    with the file sink id from the sender payload, so users can review the exact
+    .eml artifacts written under data/outbox. Nothing here is a live send.
+    """
+    msgs = db.query(Message).filter(Message.status == "sent").order_by(Message.sent_at.desc()).limit(200).all()
+    out = []
+    for m in msgs:
+        lead = db.get(Lead, m.lead_id) if m.lead_id else None
+        out.append({
+            "id": m.id,
+            "lead_id": m.lead_id,
+            "lead_name": lead.name if lead else "?",
+            "channel": m.channel,
+            "subject": m.subject,
+            "status": m.status,
+            "provider_message_id": m.provider_message_id,
+            "sent_at": str(m.sent_at) if m.sent_at else None,
+        })
+    return out
+
+
+@router.post("/{message_id}/send")
+def send_approved(message_id: str, db: Session = Depends(get_session)):
+    """Dry-run send of an approved/queued draft via the compliance gate.
+
+    This is the hardened F path: it always routes through send_message(), which
+    re-checks compliance AND pins the sender to the file outbox whenever dry-run
+    is in effect (global force_dry_run or campaign mode). In live mode an SMTP
+    sender would be used; dry-run never fires a real provider.
+    """
+    from app.jobs.send import send_message
+    m = db.get(Message, message_id)
+    if not m or m.channel != "email":
+        raise HTTPException(404, "email message not found")
+    if m.status not in ("approved", "queued"):
+        raise HTTPException(409, "message is in status %s; only approved/queued can be sent" % m.status)
+    lead = db.get(Lead, m.lead_id) if m.lead_id else None
+    campaign = _campaign_for(db, lead) if lead else None
+    result = send_message(db, m, campaign=campaign,
+                          suppression=SuppressionService(db),
+                          compliance=ComplianceService(suppression=SuppressionService(db),
+                                                        force_dry_run=settings.force_dry_run))
+    if not result["ok"]:
+        raise HTTPException(409, result["error"])
+    record(db, action="send_approved_draft", lead_id=m.lead_id,
+           detail={"message_id": m.id, "status": result["status"]})
+    return _serialize_draft(db, m)
