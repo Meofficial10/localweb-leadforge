@@ -209,3 +209,23 @@ scripts'. E = email draft grounding; F-G = queue/send + follow-up hardening; H =
   suppression blocks; a caller SMTP adapter is never fired in dry-run; live mode
   uses the passed sender; outbox listing surfaces sent records; send endpoint
   rejects unapproved). pytest 144 (was 137).
+
+## Phase 7-G: follow-up + reply/bounce tracking
+
+- backend/app/jobs/send.py schedule_followup(): follow-up is now a SCHEDULED draft
+  carrying scheduled_at = now + days_delay (default 4). It is never sent
+  immediately, and it returns None when the lead is not contacted, already has a
+  step-2 draft, or has replied/opted out - no stacking follow-ups.
+- cancel-on-response: backend/app/api/routers/webhooks.py tracks replies, bounces
+  and opt-outs and marks any pending step-2 follow-up draft as cancelled (status
+  'cancelled') instead of leaving it to fire later. Keeps the first-touch message
+  untouched. Same for unsubscribe (_cancel_pending_followups).
+- Bounce tracking was already wired (msg.bounced + state + auto-pause stats);
+  reply tracking sets lead status replied + parent message replied + inbound
+  message created with an intent label (interested / question / opt_out /
+  not_interested / neutral) for the inbox.
+- Tests: backend/tests/test_followup_tracking.py - 6 tests (deferred + scheduled_at;
+  followup only once; no follow-up after reply; reply webhook cancels pending
+  follow-up + transitions lead/parent to replied; bounce webhook sets bounced +
+  cancels pending follow-up + updates auto-pause stats; unsubscribe suppresses +
+  cancels + opts out. pytest 150 (was 144).

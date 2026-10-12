@@ -37,6 +37,18 @@ def _get_lead_by_email(db: Session, email: str) -> Lead | None:
     return db.get(Lead, res.lead_id)
 
 
+
+
+def _cancel_pending_followups(db: Session, lead: Lead | None) -> None:
+    """Mark any pending step-2 (follow-up) drafts as cancelled once the lead
+    responded (reply, opt-out, bounce). The first-touch message stays untouched.
+    """
+    if lead is None:
+        return
+    for m in lead.messages:
+        if m.sequence_step == 2 and m.status in ("draft", "approved", "queued"):
+            m.status = "cancelled"
+
 @router.post('/email')
 def email_event(payload: EmailEvent, db: Session = Depends(get_session)):
     lead = _get_lead_by_email(db, payload.email)
@@ -45,6 +57,7 @@ def email_event(payload: EmailEvent, db: Session = Depends(get_session)):
         svc.add('email', payload.email.lower(), reason='unsubscribe')
         svc.add('domain', payload.email.split('@')[-1].lower(), reason='unsubscribe')
         if lead:
+            _cancel_pending_followups(db, lead)
             lead.status = transition(lead.status, 'opted_out')
             db.commit()
         record(db, action='unsubscribe', lead_id=lead.id if lead else None,
@@ -56,6 +69,7 @@ def email_event(payload: EmailEvent, db: Session = Depends(get_session)):
             msg.bounced = True
             msg.status = 'bounced'
             if lead:
+                _cancel_pending_followups(db, lead)
                 lead.status = transition(lead.status, 'bounced')
             db.commit()
             _update_auto_pause_stats(db, bounced=True)
@@ -87,6 +101,7 @@ def email_event(payload: EmailEvent, db: Session = Depends(get_session)):
         )
         db.add(inbound)
         if lead:
+            _cancel_pending_followups(db, lead)
             lead.status = transition(lead.status, 'replied')
         if parent:
             parent.status = 'replied'

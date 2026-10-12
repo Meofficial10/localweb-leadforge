@@ -127,11 +127,19 @@ def send_message(
 
 def schedule_followup(db: Session, lead: Lead, campaign: Campaign | None = None,
                       days_delay: int = 4) -> Message | None:
-    """Create one follow-up message (step 2) if no reply/opt-out occurred."""
+    """Create one scheduled follow-up message (step 2) when the first touch is sent.
+
+    Follow-ups are never sent immediately: schedule_followup sets scheduled_at to
+    now + days_delay (default 4 days) and the message stays a draft. It returns
+    None when the lead is not contacted, already has a step-2 draft, or has
+    replied/opted out (an inbound reply or opt-out cancels the pending follow-up).
+    """
     if lead.status != "contacted":
         return None
-    # only one follow-up
+    # only one follow-up, and never stack it on top of a reply/opt-out
     if any(m.sequence_step == 2 for m in lead.messages):
+        return None
+    if any(m.direction == "inbound" or m.status in ("replied", "opted_out") for m in lead.messages):
         return None
     demo_url = lead.demo_sites[-1].preview_url if lead.demo_sites else None
     follow = Message(
@@ -145,6 +153,8 @@ def schedule_followup(db: Session, lead: Lead, campaign: Campaign | None = None,
               f"The demo is still here: {demo_url}. "
               "Happy to stop if you're not interested - just reply 'stop'."),
         status="draft",
+        scheduled_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+                 + __import__("datetime").timedelta(days=days_delay),
     )
     db.add(follow)
     lead.status = transition(lead.status, "followup_sent")
