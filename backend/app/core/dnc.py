@@ -76,3 +76,56 @@ class DNCRegistry:
             return bool(self.provider.check(phone))
         except Exception as exc:  # noqa: BLE001 - fail closed
             raise DNCUnavailable(str(exc)) from exc
+
+
+
+def get_dnc_registry(provider_name: str | None = None,
+                     api_key: str | None = None,
+                     base_url: str | None = None) -> DNCRegistry:
+    """Resolve the DNC provider configured in settings into a fail-closed registry.
+
+    "none" (default) -> NoDNCCheck: every call is blocked.
+    "registry"       -> HTTP adapter; missing key or any error fails closed.
+    The endpoint the adapter hits is {base}/check?phone=..., documented and safe
+    to call only when the operator configured a real registry.
+    """
+    from app.config import settings as _settings
+    name = provider_name or _settings.dnc_provider or "none"
+    if name == "registry":
+        key = api_key if api_key is not None else _settings.dnc_api_key
+        base = base_url if base_url is not None else _settings.dnc_registry_base_url
+        if not key:
+            # no key configured -> cannot complete the check -> fail closed
+            return DNCRegistry(NoDNCCheck())
+        return DNCRegistry(RegistryDNCCheck(base_url=base, api_key=key))
+    return DNCRegistry(NoDNCCheck())
+
+
+class RegistryDNCCheck(DNCProvider):
+    """HTTP DNC registry adapter. Fails closed on any error/timeout."""
+    name = "registry"
+
+    def __init__(self, base_url: str = "", api_key: str = "") -> None:
+        import httpx
+        self._httpx = httpx
+        self.base_url = (base_url or "https://dnc.registry.example").rstrip("/")
+        self.api_key = api_key
+
+    def check(self, phone: str) -> bool:
+        if not self.api_key:
+            raise DNCUnavailable("dnc registry api key not configured")
+        digits = "".join(ch for ch in phone if ch.isdigit())
+        try:
+            r = self._httpx.get(
+                self.base_url + "/check",
+                params={"phone": digits},
+                headers={"Authorization": "Bearer " + self.api_key},
+                timeout=10,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise DNCUnavailable("dnc registry unreachable: " + str(exc)) from exc
+        if r.status_code == 200:
+            return True  # registry confirmed the number is clear to call
+        if r.status_code in (404, 410):
+            return False  # registry says do not call / number not found -> block
+        raise DNCUnavailable("dnc registry returned HTTP " + str(r.status_code))

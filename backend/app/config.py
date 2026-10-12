@@ -50,6 +50,7 @@ class Settings(BaseSettings):
 
     dnc_provider: str = "none"
     dnc_api_key: str | None = None
+    dnc_registry_base_url: str = ""
     call_hours_window: str = "10:00-18:00"
     call_days: str = "mon,tue,wed,thu,fri"
     bounce_rate_pause_threshold: float = 0.05

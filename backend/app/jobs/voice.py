@@ -11,14 +11,16 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.core.audit import record
 from app.core.compliance import ComplianceService
+from app.core.dnc import get_dnc_registry
 from app.core.state_machine import transition
 from app.core.suppression import SuppressionService
 from app.models.call import Call
 from app.models.campaign import Campaign
 from app.models.lead import Lead
-from app.outreach.voice.provider import CallRequest, MockVoiceProvider, VoiceProvider
+from app.outreach.voice.provider import CallRequest, MockVoiceProvider, VoiceProvider, get_voice_provider
 from app.utils import new_uuid, normalize_phone
 
 CALL_SCRIPT = (
@@ -42,14 +44,24 @@ def place_call_for_lead(
         return {"ok": False, "outcome": "no_phone"}
 
     suppression = suppression or SuppressionService(db)
-    compliance = compliance or ComplianceService(suppression=suppression)
+    compliance = compliance or ComplianceService(suppression=suppression,
+                                                 dnc=get_dnc_registry(),
+                                                 force_dry_run=settings.force_dry_run)
     check = compliance.check(
         channel="voice", phone=phones[0], campaign=campaign, db=db,
     )
     if not check.ok:
         return {"ok": False, "outcome": "blocked", "reason": compliance.block_reason_string(check)}
 
-    provider = provider or MockVoiceProvider()
+    # Hardening (Workstream H): dry-run never fires a real provider. Even if a
+    # vapi/retell adapter is configured, settings.voice_dry_run or the global
+    # force_dry_run pins the call down to MockVoiceProvider (logs only).
+    dry_run_active = settings.voice_dry_run or settings.force_dry_run or bool(campaign and getattr(campaign, "mode", "dry_run") == "dry_run")
+    if dry_run_active:
+        # never fire a real provider even if the caller passed one
+        provider = MockVoiceProvider()
+    else:
+        provider = provider or get_voice_provider()
     script = CALL_SCRIPT.format(sender="Your Name", business=lead.name)
     req = CallRequest(
         phone=normalize_phone(phones[0]),

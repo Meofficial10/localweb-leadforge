@@ -229,3 +229,20 @@ scripts'. E = email draft grounding; F-G = queue/send + follow-up hardening; H =
   follow-up + transitions lead/parent to replied; bounce webhook sets bounced +
   cancels pending follow-up + updates auto-pause stats; unsubscribe suppresses +
   cancels + opts out. pytest 150 (was 144).
+
+## Phase 7-H: voice call-script + DNC adapter wiring
+
+- backend/app/core/dnc.py: new get_dnc_registry() resolver + RegistryDNCCheck HTTP
+  adapter. 'none' (default) stays fail-closed (NoDNCCheck - every call blocked);
+  'registry' hits {base}/check?phone=... with the API key and fails CLOSED on any
+  error/timeout/missing key (num not on registry -> 200 = clear; 404/410/HTTP err).
+- backend/app/config.py: dnc_registry_base_url setting (mirrors the catalog).
+- backend/app/jobs/voice.py place_call_for_lead(): default compliance now resolves
+  the DNC registry from settings (force_dry_run also passed through), and the
+  provider is pinned to MockVoiceProvider whenever dry-run is active (global
+  force_dry_run, voice_dry_run, or campaign mode dry_run) - a caller-passed real
+  adapter can never fire during a dry-run queue. Non-dry-run uses get_voice_provider().
+- Tests: backend/tests/test_voice_dnc.py - 5 tests (no phone; dry-run default blocks;
+  DNC registry blocks a registered number with zero Call rows; dry-run pins mock even
+  with a caller-passed real adapter; full live path records the Call row with
+  ai_disclosed + transitions to contacted). pytest 155 (was 150).
